@@ -1,0 +1,510 @@
+---
+title: "Pre-process data files for downstream cross-validation"
+author: "LucianoRogerio"
+date: "2022-08-31"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Previous steps
+
+- [Impute DCas21-6038:](Imputation.html) with West Africa reference panel merged with additional GS progeny (IITA TMS18)
+
+- [Validate the pedigree obtained from cassavabase:](03-validatePedigree.html) Before setting up a cross-validation scheme for predictions that depend on a correct pedigree, add a basic verification step to the pipeline. Not trying to fill unknown relationships or otherwise correct the pedigree. Assess evidence that relationship is correct, remove if incorrect.
+
+## Haplotype matrix from phased VCF
+
+Extract haps from VCF with bcftools
+
+```{r}
+library(tidyverse); library(magrittr)
+pathIn<-"output/"
+pathOut<-pathIn
+vcfName<-"AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31"
+system(paste0("bcftools convert --hapsample ",
+              pathOut,vcfName," ",
+              pathIn,vcfName,".vcf.gz "))
+```
+
+```
+Hap file: output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31.hap.gz
+Sample file: output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31.samples
+58828 records written, 0 skipped: 0/0/0 no-ALT/non-biallelic/filtered
+```
+Read haps to R
+
+```{r}
+library(data.table)
+haps<-fread(paste0(pathIn,vcfName,".hap.gz"),
+            stringsAsFactors = F,header = F) %>% 
+  as.data.frame
+sampleids<-fread(paste0(pathIn,vcfName,".samples"),
+                 stringsAsFactors = F,header = F,skip = 2) %>% 
+  as.data.frame
+```
+
+**Extract needed GIDs from BLUPs and pedigree:** Subset to: (1) genotyped-plus-phenotyped and/or (2) in verified pedigree.
+
+```{r}
+blups<-readRDS(file=here::here("output",
+                               "IITA_blupsForModelTraining_twostage_asreml_2022Aug25.rds"))
+blups %>% 
+  select(Trait,blups) %>% 
+  unnest(blups) %>% 
+  distinct(GID) %$% GID -> gidWithBLUPs
+
+genotypedWithBLUPs<-gidWithBLUPs[gidWithBLUPs %in% sampleids$V1]
+length(genotypedWithBLUPs) 
+# [1] 8062
+
+ped<-read.table(here::here("output","verified_ped.txt"),
+                header = T, stringsAsFactors = F)
+
+pednames<-union(ped$FullSampleName,
+                union(ped$SireID,ped$DamID))
+length(pednames) 
+# [1] 4727
+
+samples2keep<-union(genotypedWithBLUPs,pednames)
+length(samples2keep) 
+# [1] 8770
+
+# write a sample list to disk for downstream purposes
+# format suitable for subsetting with --keep in plink
+write.table(tibble(FID=0,IID=samples2keep),
+            file=here::here("output","samples2keep_IITA_2022Aug31.txt"),
+            row.names = F, col.names = F, quote = F)
+```
+
+#### Implement later because the genotyped Clones from the year were missing in the Genomic Prediction results
+
+```{r}
+samplesGeno2022 <- read.table(file = here::here("data", "genotyping_plate_layouts.csv"),
+                              header = T, sep = ",") %>% as_tibble()
+
+samples2keepGP <- c(samples2keep,
+                    samplesGeno2022$exported_tissue_sample_name[samplesGeno2022$exported_tissue_sample_name %in% sampleids$V1])
+
+write.table(tibble(FID=0,IID=samples2keepGP),
+            file=here::here("output","samples2keep_IITA_2022Sep22GP.txt"),
+            row.names = F, col.names = F, quote = F)
+
+```
+
+Add sample ID’s
+
+```{r}
+hapids<-sampleids %>% 
+  select(V1,V2) %>% 
+  mutate(SampleIndex=1:nrow(.)) %>% 
+  rename(HapA=V1,HapB=V2) %>% 
+  pivot_longer(cols=c(HapA,HapB),
+               names_to = "Haplo",values_to = "SampleID") %>% 
+  mutate(HapID=paste0(SampleID,"_",Haplo)) %>% 
+  arrange(SampleIndex)
+colnames(haps)<-c("Chr","HAP_ID","Pos","REF","ALT",hapids$HapID)
+```
+
+Subset haps
+
+```{r}
+hapids2keep<-hapids %>% filter(SampleID %in% samples2keep)
+dim(haps) # [1] 58828 49605
+hapsCV<-haps[,c("Chr","HAP_ID","Pos","REF","ALT",hapids2keep$HapID)]
+dim(hapsCV) # [1] 58828 17545
+
+hapids2KeepGP <- hapids %>% filter(SampleID %in% samples2keepGP)
+dim(haps) # [1] 58828 49605
+hapsGP<-haps[,c("Chr","HAP_ID","Pos","REF","ALT",hapids2KeepGP$HapID)]
+dim(hapsGP) # [1] 58828 20479
+```
+
+Format, transpose, convert to matrix and save!
+
+```{r}
+hapsCV %<>% 
+  mutate(HAP_ID=gsub(":","_",HAP_ID)) %>% 
+  column_to_rownames(var = "HAP_ID") %>% 
+  select(-Chr,-Pos,-REF,-ALT)
+hapsCV %<>% t(.) %>% as.matrix(.)
+saveRDS(hapsCV,file=here::here("data","haps_IITA_2022Aug31.rds"))
+
+hapsGP %<>% 
+  mutate(HAP_ID=gsub(":","_",HAP_ID)) %>% 
+  column_to_rownames(var = "HAP_ID") %>% 
+  select(-Chr,-Pos,-REF,-ALT)
+hapsGP %<>% t(.) %>% as.matrix(.)
+saveRDS(hapsGP,file=here::here("data","haps_IITA_2022Sep22.rds"))
+
+```
+
+## Make dosages from haps
+
+To ensure consistency in allele counting, create dosage from haps manually.
+
+```{r}
+dosagesCV<-hapsCV %>%
+  as.data.frame(.) %>% 
+  rownames_to_column(var = "GID") %>% 
+  separate(GID,c("SampleID","Haplo"),"_Hap",remove = T) %>% 
+  select(-Haplo) %>% 
+  group_by(SampleID) %>% 
+  summarise(across(everything(),~sum(.))) %>% 
+  ungroup() %>% 
+  column_to_rownames(var = "SampleID") %>% 
+  as.matrix
+dim(dosagesCV)
+# [1]  8770 58828
+saveRDS(dosagesCV,file=here::here("data","dosages_IITA_2022Aug31.rds"))
+
+dosagesGP<-hapsGP %>%
+  as.data.frame(.) %>% 
+  rownames_to_column(var = "GID") %>% 
+  separate(GID,c("SampleID","Haplo"),"_Hap",remove = T) %>% 
+  select(-Haplo) %>% 
+  group_by(SampleID) %>% 
+  summarise(across(everything(),~sum(.))) %>% 
+  ungroup() %>% 
+  column_to_rownames(var = "SampleID") %>% 
+  as.matrix
+dim(dosagesGP)
+# [1]  10237 58828
+saveRDS(dosagesGP,file=here::here("data","dosages_IITA_2022Sep22GP.rds"))
+```
+
+## Variant filters
+**Apply two variant filters:** According to the [results of Marnin preliminary experiments](https://wolfemd.github.io/implementGMSinCassava/07-Results.html#Optimize_marker_density_for_speed) I will work with two marker sets downstream, both filtered to MAF>=1%.
+
+1. lightly LD-pruned: plink --indep-pairwise 50 25 0.98 **(considered the “full_set”)**
+2. more strongly pruned plink --indep-pairwise 1000 'kb' 50 0.6 **(considered the “reduced_set”)**
+
+### Cross-Validation
+
+```{bash}
+cd /SSD/lbraatz/IITA_2022GS/
+export PATH=/programs/plink-1.9-x86_64-beta3.30:$PATH;
+```
+
+#### Lightly pruned Full_set:
+
+```{bash}
+plink --bfile output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31 \
+  --keep output/samples2keep_IITA_2022Aug31.txt \
+  --maf 0.01 \
+  --indep-pairwise 50 25 0.98 \
+  --out output/samples2keep_IITA_MAFpt01_prune50_25_pt98;
+```
+
+#### Medium_set:
+
+```{bash}
+export PATH=/programs/plink-1.9-x86_64-beta3.30:$PATH;
+plink --bfile output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31 \
+  --keep output/samples2keep_IITA_2022Aug31.txt \
+  --maf 0.01 \
+  --indep-pairwise 1000 'kb' 50 0.8 \
+  --out output/samples2keep_IITA_MAFpt01_prune1Mb_50kb_pt8; 
+```
+
+#### Reduced_set:
+
+```{bash}
+plink --bfile output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31 \
+  --keep output/samples2keep_IITA_2022Aug31.txt \
+  --maf 0.01 \
+  --indep-pairwise 1000 'kb' 50 0.6 \
+  --out output/samples2keep_IITA_MAFpt01_prune1Mb_50kb_pt6; 
+```
+
+
+Used plink to output a list of pruned SNPs.
+
+### Genomic Prediction
+
+#### Lightly pruned Full_set:
+
+```{bash}
+plink --bfile output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31 \
+  --keep output/samples2keep_IITA_2022Sep22GP.txt \
+  --maf 0.01 \
+  --indep-pairwise 50 25 0.98 \
+  --out output/samples2keepGP_IITA_MAFpt01_prune50_25_pt98;
+```
+
+#### Medium_set:
+
+```{bash}
+export PATH=/programs/plink-1.9-x86_64-beta3.30:$PATH;
+plink --bfile output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31 \
+  --keep output/samples2keep_IITA_2022Sep22GP.txt \
+  --maf 0.01 \
+  --indep-pairwise 1000 'kb' 50 0.8 \
+  --out output/samples2keepGP_IITA_MAFpt01_prune1Mb_50kb_pt8; 
+```
+
+
+## Make Add and Dom GRMs from dosages
+
+```{bash}
+# 1) go to the working directory
+cd /workdir/lbraatz/IITA_2022GS
+# 2) start a screen shell called Luciano
+screen -R Luciano; # or screen -r if re-attaching...
+# 3) start the singularity Linux shell inside that
+#singularity shell /workdir/$USER/rocker.sif; 
+singularity shell ../rocker2.sif; 
+# 4) Start R
+R
+```
+
+
+### Cross-Validation
+```{r}
+library(tidyverse); library(magrittr); library(genomicMateSelectR)
+RhpcBLASctl::blas_set_num_threads(56)
+dosages<-readRDS(file=here::here("data","dosages_IITA_2022Aug31.rds"))
+
+full_set<-read.table(here::here("output",
+                                 "samples2keep_IITA_MAFpt01_prune50_25_pt98.prune.in"),
+                      header = F, stringsAsFactors = F)
+medium_set<-read.table(here::here("output",
+                                   "samples2keep_IITA_MAFpt01_prune1Mb_50kb_pt8.prune.in"),
+                        header = F, stringsAsFactors = F)
+reduced_set<-read.table(here::here("output",
+                                   "samples2keep_IITA_MAFpt01_prune1Mb_50kb_pt6.prune.in"),
+                        header = F, stringsAsFactors = F)
+
+full_set<-tibble(FULL_SNP_ID=colnames(dosages)) %>% 
+  separate(FULL_SNP_ID,c("Chr","Pos","Ref","Alt"),remove = F) %>% 
+  mutate(SNP_ID=paste0("S",Chr,"_",Pos)) %>% 
+  filter(SNP_ID %in% full_set$V1)
+medium_set<-tibble(FULL_SNP_ID=colnames(dosages)) %>% 
+  separate(FULL_SNP_ID,c("Chr","Pos","Ref","Alt"),remove = F) %>% 
+  mutate(SNP_ID=paste0("S",Chr,"_",Pos)) %>% 
+  filter(SNP_ID %in% medium_set$V1)
+reduced_set<-tibble(FULL_SNP_ID=colnames(dosages)) %>% 
+  separate(FULL_SNP_ID,c("Chr","Pos","Ref","Alt"),remove = F) %>% 
+  mutate(SNP_ID=paste0("S",Chr,"_",Pos)) %>% 
+  filter(SNP_ID %in% reduced_set$V1)
+
+# > dim(reduced_set)
+# [1] 8158    6
+# > dim(medium_set)
+# [1] 13008     6
+# > dim(full_set)
+# [1] 30652     6
+
+snpsets<-full_set %>%
+  mutate(Set="full_set") %>% 
+  bind_rows(medium_set %>% 
+                mutate(Set="medium_set")) %>% 
+  bind_rows(reduced_set %>% 
+                mutate(Set="reduced_set")) %>% 
+  nest(snps2keep=-Set)
+saveRDS(snpsets,file = here::here("data","snpsets.rds"))
+
+# Kinships from full snp set
+A<-kinship(dosages[,full_set$FULL_SNP_ID],type="add")
+D<-kinship(dosages[,full_set$FULL_SNP_ID],type="domGenotypic")
+saveRDS(A,file=here::here("output","kinship_A_IITA_2022Aug31.rds"))
+saveRDS(D,file=here::here("output","kinship_Dgeno_IITA_2022Aug31.rds"))
+
+# kinships from reduced snp set
+A<-kinship(dosages[,medium_set$FULL_SNP_ID],type="add")
+D<-kinship(dosages[,medium_set$FULL_SNP_ID],type="domGenotypic")
+saveRDS(A,file=here::here("output","kinship_A_MediumSNPset_IITA_2022Aug31.rds"))
+saveRDS(D,file=here::here("output","kinship_Dgeno_MediumSNPset_IITA_2022Aug31.rds"))
+
+# kinships from reduced snp set
+A<-kinship(dosages[,reduced_set$FULL_SNP_ID],type="add")
+D<-kinship(dosages[,reduced_set$FULL_SNP_ID],type="domGenotypic")
+saveRDS(A,file=here::here("output","kinship_A_ReducedSNPset_IITA_2022Aug31.rds"))
+saveRDS(D,file=here::here("output","kinship_Dgeno_ReducedSNPset_IITA_2022Aug31.rds"))
+
+```
+
+### Genomic Prediction
+
+```{r}
+library(tidyverse); library(magrittr); library(genomicMateSelectR)
+RhpcBLASctl::blas_set_num_threads(56)
+dosages<-readRDS(file=here::here("data","dosages_IITA_2022Sep22GP.rds"))
+
+full_setGP<-read.table(here::here("output",
+                                 "samples2keepGP_IITA_MAFpt01_prune50_25_pt98.prune.in"),
+                      header = F, stringsAsFactors = F)
+medium_setGP<-read.table(here::here("output",
+                                   "samples2keepGP_IITA_MAFpt01_prune1Mb_50kb_pt8.prune.in"),
+                        header = F, stringsAsFactors = F)
+
+full_set<-tibble(FULL_SNP_ID=colnames(dosages)) %>% 
+  separate(FULL_SNP_ID,c("Chr","Pos","Ref","Alt"),remove = F) %>% 
+  mutate(SNP_ID=paste0("S",Chr,"_",Pos)) %>% 
+  filter(SNP_ID %in% full_setGP$V1)
+medium_set<-tibble(FULL_SNP_ID=colnames(dosages)) %>% 
+  separate(FULL_SNP_ID,c("Chr","Pos","Ref","Alt"),remove = F) %>% 
+  mutate(SNP_ID=paste0("S",Chr,"_",Pos)) %>% 
+  filter(SNP_ID %in% medium_setGP$V1)
+
+dim(medium_set)
+# [1] 13083     6
+dim(full_set)
+# [1] 30896     6
+
+snpsets<-full_set %>%
+  mutate(Set="full_set") %>% 
+  bind_rows(medium_set %>% 
+                mutate(Set="medium_set")) %>% 
+  nest(snps2keep=-Set)
+saveRDS(snpsets,file = here::here("data","snpsetsGP.rds"))
+
+# Kinships from full snp set
+A<-kinship(dosages[,full_set$FULL_SNP_ID],type="add")
+D<-kinship(dosages[,full_set$FULL_SNP_ID],type="domGenotypic")
+saveRDS(A,file=here::here("output","kinship_A_IITA_2022Sep22GP.rds"))
+saveRDS(D,file=here::here("output","kinship_Dgeno_IITA_2022Sep22GP.rds"))
+
+# kinships from reduced snp set
+A<-kinship(dosages[,medium_set$FULL_SNP_ID],type="add")
+D<-kinship(dosages[,medium_set$FULL_SNP_ID],type="domGenotypic")
+saveRDS(A,file=here::here("output","kinship_A_MediumSNPset_IITA_2022Sep22GP.rds"))
+saveRDS(D,file=here::here("output","kinship_Dgeno_MediumSNPset_IITA_2022Sep22GP.rds"))
+
+```
+
+
+## Genetic Map and Recomb. freq. matrix
+
+The genetic map and recombination frequency matrix including all the SNPs that will be in any downstream analysis, were created previously. [See here.](https://wolfemd.github.io/implementGMSinCassava/05-CrossValidation.html#Optimize_marker_density_for_speed)
+
+Download `recombFreqMat` from Cassavabase FTP server: [Click Here* to download `recombFreqMat_1minus2c_2021Aug02.qs`.](ftp://ftp.cassavabase.org/marnin_datasets/implementGMSinCassava/data/recombFreqMat_1minus2c_2021Aug02.qs)
+
+Copy to project directory.
+
+```{bash}
+scp data/recombFreqMat_1minus2c_2021Aug02.qs lbraatz@cbsumezey03.biohpc.cornell.edu:/workdir/lbraatz/IITA_2022GS/data/.
+```
+
+
+## Pedigree
+
+3. [Validate the pedigree obtained from cassavabase:](03-validatePedigree.html) Before setting up a cross-validation scheme for predictions that depend on a correct pedigree, add a basic verification step to the pipeline. Not trying to fill unknown or otherwise correct the pedigree. Assess evidence that relationship is correct, remove if incorrect.
+
+```{r}
+ped<-read.table(here::here("output","verified_ped.txt"),
+                header = T, stringsAsFactors = F)
+```
+
+## BLUPs
+
+Select traits and data to be analyzed.
+
+```{r}
+# This list from Dec. 2020 GeneticGain rate estimation
+# These were what Ismail/IITA/BMGF wanted to see
+# Will cross-validate these traits
+traits<-c("logDYLD","logFYLD","logRTNO","logTOPYLD","MCMDS","DM","BCHROMO",
+          "PLTHT","BRLVLS","BRNHT1","HI")
+# only 8 of these on the SELIND
+
+# Full trait list = 14:
+## traits<-c("MCMDS","DM","PLTHT","BRNHT1","BRLVLS","HI",
+##           "logDYLD", # <-- logDYLD now included.
+##           "logFYLD","logTOPYLD","logRTNO","TCHART","LCHROMO","ACHROMO","BCHROMO")
+
+library(tidyverse); library(magrittr);
+blups<-readRDS(file=here::here("output",
+                               "IITA_blupsForModelTraining_twostage_asreml_2022Aug25.rds"))
+dosages<-readRDS(file=here::here("data","dosages_IITA_2022Aug31.rds"))
+
+blups %>% 
+  select(Trait,blups) %>% 
+  unnest(blups) %>% 
+  distinct(GID) %$% GID -> gidWithBLUPs
+# [1] 77854
+length(gidWithBLUPs)
+genotypedWithBLUPs<-gidWithBLUPs[gidWithBLUPs %in% rownames(dosages)]
+length(genotypedWithBLUPs) 
+# [1] 8669
+
+blups %<>% 
+  filter(Trait %in% traits) %>% 
+  select(Trait,blups,varcomp) %>% 
+  mutate(blups=map(blups,~filter(.,GID %in% genotypedWithBLUPs)))
+
+saveRDS(blups,file=here::here("data","blups_forGP.rds"))
+```
+
+## Index weights [get from Ismail]
+
+```{r}
+# SELECTION INDEX WEIGHTS
+## from IYR+IK
+## note that not ALL predicted traits are on index
+SIwts<-c(logFYLD=20,
+         HI=10,
+         DM=15,
+         MCMDS=-10,
+         logRTNO=12,
+         logDYLD=20,
+         logTOPYLD=15,
+         PLTHT=10)
+SIwts
+```
+
+```
+  logFYLD        HI        DM     MCMDS   logRTNO   logDYLD logTOPYLD     PLTHT 
+       20        10        15       -10        12        20        15        10 
+```
+
+## Germplasm Likely In Field Summer 2021
+
+Soon, will get a precise list from IITA team. For now: went to cassavabase wizard, made a list of all IITA accessions in field trials dated 2021 and 2022 at 4 locations (IBA, IKN, MOK, UBJ), as these can likely source for crossing nurseries. Cross reference that list with my genos-2-phenos matches to get a list of clones I can make genomic predictions for.
+
+```{r}
+library(tidyverse); library(magrittr);
+dbdata<-readRDS(here::here("output","IITA_ExptDesignsDetected_2022Aug24.rds"))
+
+accessions_possibly_infield<-read.table(here::here("data","Accessions_IITA_LikelyInField_IbaIknMokUbj_2021to2022.txt"), 
+           header = F, stringsAsFactors = F) %>% 
+  as_tibble %>% 
+  rename(germplasmName=V1) %>% 
+  inner_join(dbdata %>% 
+               distinct(germplasmName,GID,FullSampleName)) %>% 
+  filter(!is.na(FullSampleName)) %>% 
+  mutate(Cohort=NA,
+         Cohort=ifelse(grepl("TMS21",germplasmName,ignore.case = T),"TMS21",
+                       ifelse(grepl("TMS20",germplasmName,ignore.case = T),"TMS20",
+                              ifelse(grepl("TMS19",germplasmName,ignore.case = T),"TMS19",
+                                     ifelse(grepl("TMS18",germplasmName,ignore.case = T),"TMS18",
+                                            ifelse(grepl("TMS17",germplasmName,ignore.case = T),"TMS17",
+                                                   ifelse(grepl("TMS16",germplasmName,ignore.case = T),"TMS16",
+                                                          ifelse(grepl("TMS15",germplasmName,ignore.case = T),"TMS15",
+                                                                 ifelse(grepl("TMS14",germplasmName,ignore.case = T),"TMS14",
+                                                                        ifelse(grepl("TMS13|2013_",germplasmName,
+                                                                                     ignore.case = T),"TMS13","GGetc"))))))))))
+saveRDS(accessions_possibly_infield,
+        here::here("data","accessions_possibly_infield_2022Aug31.rds"))
+# accessions_possibly_infield %>%  
+#   count(Cohort)
+#   Cohort     n
+#   <chr>  <int>
+# 1 GGetc    477
+# 2 TMS13     84
+# 3 TMS14     75
+# 4 TMS15     17
+# 5 TMS16      1
+# 6 TMS17     23
+# 7 TMS18    401
+# 8 TMS19     74
+# 9 TMS20    248
+#10 TMS21   1255            
+```
+
+## Next step
+
+5. [Parent-wise and standard cross-validation:](05-CrossValidation.html) estimate selection index (and component trait) prediction accuracies using the direction-dominance (**DirDom**) model.
+
+6 . [Genomic predictions:](06-GenomicPredictions.html) First, predict of individual GEBV/GETGV for all selection candidates using all available data and return marker effects for use downstream. Next, Select a top set of candidate parents, for whom we would like to predict cross performances. Finally, predict all pairwise crosses of candidate parents and evaluate them for genomic mate selection. Select the top crosses and plant a crossing nursery with the parents indicated.
+

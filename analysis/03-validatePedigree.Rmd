@@ -1,0 +1,525 @@
+---
+title: "Verify the pedigree entries"
+author: "LucianoRogerio"
+date: "2022-08-25"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Previous step
+
+2. [Get BLUPs combining all trial data](02-GetBLUPS.html): Combine data from all trait-trials to get BLUPs for downstream genomic prediction. Fit mixed-model to multi-trial dataset and extract BLUPs, de-regressed BLUPs and weights. Include two rounds of outlier removal.
+
+
+## Read pedigree
+
+Read the pedigree I downloaded for IITA
+
+```{r}
+library(tidyverse); library(magrittr)
+
+ped <- read.table(file = here::here("data/pedigree.txt"),
+                sep = "\t", header = T)
+ped_tms20<-readxl::read_xlsx(here::here("data","Pedigree.xlsx"))
+
+ped_tms21 <- read.table(file = here::here("data/pedigree2021.txt"),
+                              header = T, sep = "\t")
+ped %<>% 
+  select(-Cross_Type) %>% 
+  bind_rows(ped_tms20 %>% 
+              select(Accession_name,Pedigree) %>% 
+              rename(Accession=Accession_name) %>% 
+              separate(Pedigree,c("Female_Parent","Male_Parent"),"/")) %>% 
+  bind_rows(ped_tms21 %>% select(-Cross_Type))
+```
+
+Filter Keep only complete pedigree records.
+
+```{r}
+ped %<>% 
+  filter(!is.na(Female_Parent),
+         !is.na(Male_Parent),
+         Female_Parent!="?",
+         Male_Parent!="?") %>% 
+  distinct
+```
+
+Number of full-sib families?
+
+```{r}
+ped %>% distinct(Female_Parent, Male_Parent) %>% nrow()
+```
+
+Summarise distribution of full-sib family sizes
+
+```{r}
+ped %>% count(Female_Parent, Male_Parent) %>% arrange(desc(n)) %>% summary(.$n)
+
+ped %>% head
+```
+
+
+Match SNP-to-pedigree names
+
+Goal is to identify DNA samples names for listed accessions and parents in the pedigree. Important to choose same samples used in genomic predictions where possible, esp. phenotyped training clones.
+
+However, there may be non-phenotyped clones that are genotyped genomic selection progeny, which I still want in my analysis.
+
+First with the union of the parent and accession IDs in the pedigree.
+
+
+```{r}
+pednames<-union(ped$Accession,union(ped$Female_Parent,ped$Male_Parent)) %>% 
+  tibble(germplasmName=.)
+pednames$germplasmName %>% length # number of names in ped
+```
+
+
+Add a “Cohort” variable corresponding to the genetic groups or cycles in the germplasm.
+
+```{r}
+pednames %<>%
+  mutate(Cohort=NA,
+         Cohort=ifelse(grepl("TMS21",germplasmName,ignore.case = T),"TMS21",
+                       ifelse(grepl("TMS20",germplasmName,ignore.case = T),"TMS20",
+                              ifelse(grepl("TMS19",germplasmName,ignore.case = T),"TMS19",
+                                     ifelse(grepl("TMS18",germplasmName,ignore.case = T),"TMS18",
+                                            ifelse(grepl("TMS17",germplasmName,ignore.case = T),"TMS17",
+                                                   ifelse(grepl("TMS16",germplasmName,ignore.case = T),"TMS16",
+                                                          ifelse(grepl("TMS15",germplasmName,ignore.case = T),"TMS15",
+                                                                 ifelse(grepl("TMS14",germplasmName,ignore.case = T),"TMS14",
+                                                                        ifelse(grepl("TMS13|2013_",germplasmName,ignore.case = T),"TMS13","GGetc"))))))))))
+pednames %>% filter(Cohort == "GGetc") %>% .$germplasmName %>% .[19001:20000]
+  count(Cohort)
+```
+
+The names in the pedigree downloaded from cassavabase should match the names in the germplasmName variable in the plot-basis pheno data, also downloaded from cassavabase. From that plot-basis data, make a data.frame of the unique germplasmName-to-FullSampleName matches, where FullSampleName is the column with names matching VCF files / DNA samples.
+
+```{r}
+dbdata<-readRDS(here::here("output","IITA_ExptDesignsDetected_2022Aug24.rds"))
+phenos2genos<-dbdata %>% 
+  distinct(GID,germplasmName,FullSampleName) %>% 
+  filter(!is.na(FullSampleName))
+phenos2genos %>% head
+```
+
+
+How many from each cohort in the pednames match a germplasmName with a FullSampleName in the plot-basis trial data?
+
+
+```{r}
+pednames %>%
+  inner_join(phenos2genos, by = "germplasmName") %>%
+  count(Cohort)
+```
+
+I want haplotypes of genotyped progeny in the pedigree even if they aren’t phenotyped.
+
+The `*.fam` file for the RefPanelAndGSprogeny VCF I will ultimately use to extract haplotypes and do predictions with is already in the `data/` directory because it’s used in the standard match-genos-to-phenos step.
+
+```{r}
+gids_in_fam <- read.table(here::here("data", "IITADArTClones.csv"), sep = ",", header = T)
+length(gids_in_fam)
+```
+
+I did not follow the next step as Marnin did, due to part of the DArT DNA sample names now is Plate_name+Accession_name, so I would be deleting the correct names if I associate that I should follow that pattern for the clones. But I already create a file with all the names and tag_names `IITADArTClones.csv` in data `folder`.
+`Split the names based on a “:” for the GBS samples, and “_A” seems to work (for IITA) to split the DArT sample ID from the germplasmName for DArTseqLD samples. The suffix / ID added to DNA sample names at DARt seems to vary depending on what gets submitted to them. GBS-era samples (almost) 100% had the “:” separator.`
+
+```{r}
+gids_in_fam %>%
+  filter(grepl("TMS18",FullSampleName)) %>% nrow()
+```
+
+There are also TMS20 in the latest DArT report and the DB sourced ped contains matches to the DART sample names.
+
+```{r}
+gids_in_fam %>%
+  filter(grepl("TMS16|TMS17|TMS18|TMS19|TMS20|TMS21",FullSampleName)) %>% nrow()
+```
+
+There are 4962 “TMS16” though “TMS21” clones genotyped.
+
+```{r}
+pednames2genos<-pednames %>% 
+  inner_join(phenos2genos) %>% 
+  bind_rows(pednames %>%
+              anti_join(phenos2genos) %>% 
+              inner_join(gids_in_fam))
+pednames2genos %>% count(Cohort) 
+```
+
+Are there germplasmName in the pednames2genos match table with multiple DNA samples?
+
+```{r}
+pednames2genos %>% count(germplasmName) %>% arrange(desc(n))
+```
+
+Of course there are. Will need to pick.
+
+Which pednames have BLUPs?
+
+```{r}
+blups<-readRDS(file=here::here("output","IITA_blupsForModelTraining_twostage_asreml_2022Aug25.rds"))
+blups %>% 
+  select(Trait,blups) %>% 
+  unnest(blups) %>% 
+  distinct(GID) %$% GID -> gidWithBLUPs
+pednames %>%
+  inner_join(phenos2genos) %>% 
+  filter(FullSampleName %in% gidWithBLUPs) %>% 
+  count(Cohort)
+
+# if there are any blups for a germplasmName
+# keep only the FullSampleName/GID associated
+# else keep all
+pednames2genos %<>% 
+  mutate(HasBLUPs=ifelse(GID %in% gidWithBLUPs,T,F)) %>% 
+  nest(DNAsamples=-c(germplasmName,Cohort)) %>% 
+  mutate(AnyBLUPs=map_lgl(DNAsamples,~any(.$HasBLUPs)),
+         DNAsamples=ifelse(AnyBLUPs==T,
+                           map(DNAsamples,~filter(.,HasBLUPs==TRUE)),
+                           DNAsamples)) %>% 
+  select(-AnyBLUPs) %>% 
+  unnest(DNAsamples)
+# Among all remaining
+# Select only one GID to use for each germplasmName
+pednames2genos %<>% 
+  group_by(germplasmName) %>% 
+  slice(1) %>% 
+  ungroup()
+pednames2genos %>% 
+  count(Cohort)
+```
+
+Now make a pedigree with both Accession and parent names matching the genos (FullSampleName) rather than phenos (germplasmName).
+
+```{r}
+ped2genos<-ped %>% 
+  rename(germplasmName=Accession) %>% 
+  inner_join(pednames2genos %>% 
+               select(-GID,-HasBLUPs)) %>% 
+  left_join(pednames2genos %>% 
+              select(-GID,-Cohort,-HasBLUPs) %>% 
+              rename(Female_Parent=germplasmName,
+                     DamID=FullSampleName)) %>% 
+  left_join(pednames2genos %>% 
+              select(-GID,-Cohort,-HasBLUPs) %>% 
+              rename(Male_Parent=germplasmName,
+                     SireID=FullSampleName)) 
+ped2genos %<>% 
+  filter(!is.na(FullSampleName),
+         !is.na(DamID),
+         !is.na(SireID))
+ped2genos %>% distinct
+```
+
+In the end, considering only pedigree entries where the entire trio (offspring + both parents) are genotyped, the pedigree has 7414 entries to check.
+
+```{r}
+ped2genos %>% count(Cohort,DamID,SireID) %>% 
+  ggplot(.,aes(x=Cohort,y=n,fill=Cohort)) + 
+  geom_boxplot(notch = T) + theme_bw() +
+  ggtitle("Distribution of family sizes (genotyped only)")
+```
+
+```{r}
+ped2genos %>% 
+  count(Cohort,DamID,SireID) %$% summary(n)
+```
+
+Number of families with at least 10 genotyped members, by cohort:
+
+```{r}
+ped2genos %>% 
+  count(Cohort,DamID,SireID) %>% 
+  filter(n>=10) %>% 
+  count(Cohort)
+
+ped2genos %>% 
+  select(FullSampleName,DamID,SireID) %>% 
+  write.table(.,file=here::here("output","ped2genos.txt"),row.names=F, col.names=F, quote=F)
+
+```
+
+## Run plink IBD (–genome)
+
+**Alternative to the below:** Could compute everything manually based on mendelian rules. Kinship coefficients directly from the relationship matrix used for prediction would also be useful, for example, the estimated inbreeding coefficient of an individual is 1/2 the relationship of its parents.
+
+PLINK1.9 pipeline to use:
+
+1. Subset whole-pop. plink file (`AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug03`) to only lines in the pedigree.
+2. LD-prune `--indep-pairwise 100 25 0.25` stringent, but somewhat arbitrary
+3. Compute IBD-relationships `--genome`
+4. Parent-offspring relationships determination (see below)
+
+**Determine parent-offspring relationship status based on plink IBD:**
+
+- should have a kinship **π^≈0.5**.
+
+- Three standard IBD probabilities are defined for each pair; the probability of sharing zero (Z0), one (Z1) or two (Z2) alleles at a randomly chosen locus IBD.
+
+- The expectation for siblings in terms of these probabilities is Z0=0.25, Z1=0.5 and Z2=0.25.
+
+- The expectation for parent-offspring pairs is Z0=0, Z1=1 and Z2=0.
+
+- Based on work Marnin did in 2016 (never published), declare a parent-offspring pair where: Z0<0.313 and Z1>0.668.
+
+```{r}
+ped2check<-read.table(file=here::here("output","ped2genos.txt"),
+                      header = F, stringsAsFactors = F)
+
+pednames<-union(ped2check$V1,union(ped2check$V2,ped2check$V3)) %>% 
+  tibble(FID=0,IID=.)
+write.table(pednames,file=here::here("output","pednames2keep.txt"), 
+            row.names = F, col.names = F, quote = F)
+```
+
+Checked plink’s order-of-operations and combining –keep and –indep-pairwise in the same filter call should result in the correct ordering: first subset samples, then LD prune.
+
+```{bash}
+cd /workdir/lbraatz/IITA_2022GS/
+export PATH=/programs/plink-1.9-x86_64-beta3.30:$PATH;
+plink --bfile output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31 \
+  --keep output/pednames2keep.txt \
+  --indep-pairwise 100 25 0.25 \
+  --genome \
+  --out output/pednames_Prune100_25_pt25;
+```
+
+Creates a 2.8GB *.genome, 6,642 samples samples worth of pairwise relationships.
+
+
+```{r}
+library(tidyverse); library(magrittr); library(data.table)
+
+genome<-fread(here::here("output/", 
+                         "pednames_Prune100_25_pt25.genome"),
+              stringsAsFactors = F,header = T) %>% 
+  as_tibble
+
+ped2check<-read.table(file=here::here("output","ped2genos.txt"),
+                      header = F, stringsAsFactors = F)
+
+head(genome)
+# A tibble: 6 × 14
+#   FID1 IID1        FID2 IID2  RT       EZ    Z0    Z1     Z2 PI_HAT   PHE   DST
+#  <int> <chr>      <int> <chr> <chr> <int> <dbl> <dbl>  <dbl>  <dbl> <int> <dbl>
+#1     0 TMS15F114…     0 TMS1… OT        0 1     0     0      0         -1 0.717
+#2     0 TMS15F114…     0 TMS1… OT        0 0.855 0.102 0.0424 0.0936    -1 0.761
+#3     0 TMS15F114…     0 TMS1… OT        0 0.854 0.146 0      0.0731    -1 0.715
+#4     0 TMS15F114…     0 TMS1… OT        0 1     0     0      0         -1 0.722
+#5     0 TMS15F114…     0 TMS1… OT        0 0.407 0.593 0      0.296     -1 0.772
+#6     0 TMS15F114…     0 TMS1… OT        0 1     0     0      0         -1 0.712
+# … with 2 more variables: PPC <dbl>, RATIO <dbl>
+dim(genome)
+#[1] 22054761       14
+
+ped2check_genome<-genome %>% 
+  semi_join(ped2check %>% rename(IID1=V1,IID2=V2)) %>% 
+  bind_rows(genome %>% semi_join(ped2check %>% rename(IID1=V2,IID2=V1))) %>% 
+  bind_rows(genome %>% semi_join(ped2check %>% rename(IID1=V1,IID2=V3))) %>% 
+  bind_rows(genome %>% semi_join(ped2check %>% rename(IID1=V3,IID2=V1)))
+saveRDS(ped2check_genome,file=here::here("output","ped2check_genome.rds"))
+```
+
+```{bash}
+cd /workdir/lbraatz/IITA_2022GS/output/;
+rm pednames_Prune100_25_pt25.genome
+```
+
+
+## Verify and Correct Pedigree
+
+```{r}
+library(tidyverse); library(magrittr);
+ped2check_genome<-readRDS(file=here::here("output","ped2check_genome.rds"))
+ped2check_genome %<>% 
+  select(IID1,IID2,Z0,Z1,Z2,PI_HAT)
+
+ped2check<-read.table(file=here::here("output","ped2genos.txt"),
+                      header = F, stringsAsFactors = F) %>% 
+  rename(FullSampleName=V1,DamID=V2,SireID=V3)
+
+ped2check %<>% 
+  select(FullSampleName,DamID,SireID) %>% 
+  inner_join(ped2check_genome %>% 
+               rename(FullSampleName=IID1,DamID=IID2) %>% 
+               bind_rows(ped2check_genome %>% 
+                           rename(FullSampleName=IID2,DamID=IID1))) %>% 
+  distinct %>% 
+  mutate(ConfirmFemaleParent=case_when(Z0<0.32 & Z1>0.67~"Confirm",
+                                       SireID==DamID & PI_HAT>0.6 & Z0<0.3 & Z2>0.32~"Confirm",
+                                       TRUE~"Reject")) %>% 
+  select(-Z0,-Z1,-Z2,-PI_HAT) %>% 
+  inner_join(ped2check_genome %>% 
+               rename(FullSampleName=IID1,SireID=IID2) %>% 
+               bind_rows(ped2check_genome %>% 
+                           rename(FullSampleName=IID2,SireID=IID1))) %>% 
+  distinct %>% 
+  mutate(ConfirmMaleParent=case_when(Z0<0.32 & Z1>0.67~"Confirm",
+                                       SireID==DamID & PI_HAT>0.6 & Z0<0.3 & Z2>0.32~"Confirm",
+                                       TRUE~"Reject")) %>% 
+  select(-Z0,-Z1,-Z2,-PI_HAT)
+
+ped2check %>% 
+  count(ConfirmFemaleParent,ConfirmMaleParent) %>% mutate(Prop=round(n/sum(n),2))
+```
+
+```
+  ConfirmFemaleParent ConfirmMaleParent    n Prop
+1             Confirm           Confirm 4579 0.72
+2             Confirm            Reject  734 0.11
+3              Reject           Confirm  473 0.07
+4              Reject            Reject  606 0.09
+```
+
+```{r}
+ped2check %>% 
+  mutate(Cohort=NA,
+         Cohort=ifelse(grepl("TMS21",FullSampleName,ignore.case = T),"TMS21",
+                       ifelse(grepl("TMS20",FullSampleName,ignore.case = T),"TMS20",
+                              ifelse(grepl("TMS19",FullSampleName,ignore.case = T),"TMS19",
+                                     ifelse(grepl("TMS18",FullSampleName,ignore.case = T),"TMS18",
+                                            ifelse(grepl("TMS17",FullSampleName,ignore.case = T),"TMS17",
+                                                   ifelse(grepl("TMS16",FullSampleName,ignore.case = T),"TMS16",
+                                                          ifelse(grepl("TMS15",FullSampleName,ignore.case = T),"TMS15",
+                                                                 ifelse(grepl("TMS14",FullSampleName,ignore.case = T),"TMS14",
+                                                                        ifelse(grepl("TMS13|2013_",FullSampleName,
+                                                                                     ignore.case = T),"TMS13","GGetc")))))))))) %>% 
+  filter(ConfirmFemaleParent=="Confirm",
+         ConfirmMaleParent=="Confirm") %>% 
+  count(Cohort,name = "BothParentsConfirmed")
+```
+
+```
+  Cohort BothParentsConfirmed
+1  GGetc                   26
+2  TMS13                 1784
+3  TMS14                 1303
+4  TMS15                  590
+5  TMS17                   11
+6  TMS18                  693
+7  TMS19                   40
+8  TMS20                  132
+```
+
+I’m only interested in families / trios that are confirmed. Remove any without both parents confirmed.
+
+
+```{r}
+correctedped<-ped2check %>% 
+  filter(ConfirmFemaleParent=="Confirm",
+         ConfirmMaleParent=="Confirm") %>% 
+  select(-contains("Confirm"))
+
+correctedped %>% 
+  count(SireID,DamID) %>% arrange(desc(n))
+```
+
+```{r}
+correctedped %>% 
+  count(SireID,DamID) %$% summary(n)
+```
+
+
+```
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.000   1.000   3.000   5.577   7.000  77.000
+```
+
+```{r}
+correctedped %>% 
+  count(SireID,DamID) %>% 
+  filter(n>=5) %>% arrange(desc(n)) %$% union(SireID,DamID) %>% 
+  tibble(ParentsMoreThanFiveProg=.) %>%  
+  mutate(Cohort=NA,
+         Cohort=ifelse(grepl("TMS21",ParentsMoreThanFiveProg,ignore.case = T),"TMS21",
+                       ifelse(grepl("TMS20",ParentsMoreThanFiveProg,ignore.case = T),"TMS20",
+                       ifelse(grepl("TMS19",ParentsMoreThanFiveProg,ignore.case = T),"TMS19",
+                              ifelse(grepl("TMS18",ParentsMoreThanFiveProg,ignore.case = T),"TMS18",
+                                     ifelse(grepl("TMS17",ParentsMoreThanFiveProg,ignore.case = T),"TMS17",
+                                            ifelse(grepl("TMS16",ParentsMoreThanFiveProg,ignore.case = T),"TMS16",
+                                                   ifelse(grepl("TMS15",ParentsMoreThanFiveProg,ignore.case = T),"TMS15",
+                                                          ifelse(grepl("TMS14",ParentsMoreThanFiveProg,ignore.case = T),"TMS14",
+                                                                 ifelse(grepl("TMS13|2013_",ParentsMoreThanFiveProg,
+                                                                              ignore.case = T),"TMS13","GGetc")))))))))) %>%
+  count(Cohort, name="ParentsWithLeast5offspring")
+```
+
+```
+  Cohort ParentsWithLeast5offspring
+  <chr>                       <int>
+1 GGetc                          83
+2 TMS13                          77
+3 TMS14                          20
+4 TMS15                          21
+```
+
+```{r}
+correctedped %>% 
+  count(SireID,DamID) %>% 
+  arrange(desc(n)) %$% union(SireID,DamID) %>% 
+  tibble(Parents=.) %>%  
+  mutate(Cohort=NA,
+         Cohort=ifelse(grepl("TMS21",Parents,ignore.case = T),"TMS21",
+                       ifelse(grepl("TMS20",Parents,ignore.case = T),"TMS20",
+                              ifelse(grepl("TMS19",Parents,ignore.case = T),"TMS19",
+                                     ifelse(grepl("TMS18",Parents,ignore.case = T),"TMS18",
+                                            ifelse(grepl("TMS17",Parents,ignore.case = T),"TMS17",
+                                                   ifelse(grepl("TMS16",Parents,ignore.case = T),"TMS16",
+                                                          ifelse(grepl("TMS15",Parents,ignore.case = T),"TMS15",
+                                                                 ifelse(grepl("TMS14",Parents,ignore.case = T),"TMS14",
+                                                                        ifelse(grepl("TMS13|2013_",Parents,
+                                                                              ignore.case = T),"TMS13","GGetc")))))))))) %>%
+  count(Cohort, name="Parents")
+```
+
+```
+  Cohort Parents
+  <chr>    <int>
+1 GGetc      115
+2 TMS13      117
+3 TMS14       56
+4 TMS15       76
+5 TMS18        7
+```
+
+```{r}
+correctedped %>% 
+  mutate(Cohort=NA,
+         Cohort=ifelse(grepl("TMS21",FullSampleName,ignore.case = T),"TMS21",
+                       ifelse(grepl("TMS20",FullSampleName,ignore.case = T),"TMS20",
+                              ifelse(grepl("TMS19",FullSampleName,ignore.case = T),"TMS19",
+                                     ifelse(grepl("TMS18",FullSampleName,ignore.case = T),"TMS18",
+                                            ifelse(grepl("TMS17",FullSampleName,ignore.case = T),"TMS17",
+                                                   ifelse(grepl("TMS16",FullSampleName,ignore.case = T),"TMS16",
+                                                          ifelse(grepl("TMS15",FullSampleName,ignore.case = T),"TMS15",
+                                                                 ifelse(grepl("TMS14",FullSampleName,ignore.case = T),"TMS14",
+                                                                        ifelse(grepl("TMS13|2013_",FullSampleName,
+                                                                                     ignore.case = T),"TMS13","GGetc")))))))))) %>% 
+  count(Cohort, name="BothParentsConfirmed")
+```
+
+```
+  Cohort BothParentsConfirmed
+1  GGetc                   26
+2  TMS13                 1784
+3  TMS14                 1303
+4  TMS15                  590
+5  TMS17                   11
+6  TMS18                  693
+7  TMS19                   40
+8  TMS20                  132
+```
+
+## –> Write verified pedigree
+
+```{r}
+correctedped %>% 
+  write.table(.,here::here("output","verified_ped.txt"),
+              row.names = F, col.names = T, quote = F)
+```
+
+## Next Step
+4. [Preprocess data files:]() Prepare haplotype and dosage matrices, GRMs, pedigree and BLUPs, genetic map and recombination frequency matrix, for use in predictions.

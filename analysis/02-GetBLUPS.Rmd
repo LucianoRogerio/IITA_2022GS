@@ -1,0 +1,189 @@
+---
+title: "Get BLUPS combining all trial data"
+author: "LucianoRogerio"
+date: "2022-08-25"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Previous step
+Prepare training dataset: Download data from DB, “Clean” and format DB data.
+
+
+## Get multi-trial BLUPs from raw data (two-stage)
+
+Two-stage procedure:
+
+1. Fit mixed-model to multi-trial dataset and extract BLUPs, de-regressed BLUPs and weights. Include two rounds of outlier removal.
+2. Genomic prediction with drg-BLUPs from multi-trial analysis as input.
+
+**Work below represents Stage 1 of the Two-stage procedure.**
+
+To fit the mixed-model I used last year, I am again resorting to asreml. I fit random effects for rep and block only where complete and incomplete blocks, respectively are indicated in the trial design variables. `sommer` should be able to fit the same model via the at() function, but I am having trouble with it’s memory intnsity and sommer is much slower even without a dense covariance (i.e. a kinship), compared to `lme4::lmer()` or `asreml::asreml()`.
+
+To use `asreml` I require to access the license available only on robbins servers, I am actually using one called cbsumezey03.biohpc.cornell.edu.
+
+This is the only step like this in the pipeline.
+
+cbsumezey03 is using a SLURM job scheduler now. According to instructions, start an interactive bash shell with requested amount of recources, as follows:
+
+```{bash, eval = F}
+screen -R Luciano;
+cd /workdir/lbraatz/IITA_2021GS/;
+salloc -n20  --mem=100G;
+# salloc: Granted job allocation 833
+# salloc: Waiting for resource configuration
+# salloc: Nodes cbsurobbins are ready for job
+R;
+
+```
+
+
+## Set-up training datasets
+
+```{r, eval = F}
+library(tidyverse); library(magrittr);
+library(genomicMateSelectR)
+dbdata<-readRDS(here::here("output","IITA_ExptDesignsDetected_2022Aug24.rds"))
+traits<-c("MCMDS","DM","PLTHT","BRNHT1","BRLVLS","HI",
+          "logDYLD", # <-- logDYLD now included. 
+          "logFYLD","logTOPYLD","logRTNO","TCHART","LCHROMO","ACHROMO","BCHROMO")
+
+# **Nest by trait.** Need to restructure the data from per-trial by regrouping by trait. 
+dbdata<-nestDesignsDetectedByTraits(dbdata,traits)
+
+dbdata %>% mutate(N_blups=map_dbl(MultiTrialTraitData,nrow)) %>% rmarkdown::paged_table()
+
+dbdata %<>%
+  mutate(fixedFormula=ifelse(Trait %in% c("logDYLD","logFYLD","logRTNO","logTOPYLD"),
+                             "Value ~ yearInLoc + PropNOHAV","Value ~ yearInLoc"),
+         randFormula=paste0("~idv(GID) + idv(trialInLocYr) + at(CompleteBlocks,'Yes'):repInTrial ",
+                            "+ at(IncompleteBlocks,'Yes'):blockInRep"))
+dbdata %>%
+  mutate(Nobs=map_dbl(MultiTrialTraitData,nrow)) %>%
+  select(Trait,Nobs,fixedFormula,randFormula) %>%
+  rmarkdown::paged_table()
+```
+
+## Function to run asreml
+Includes rounds of outlier removal and re-fitting.
+Updated for new asreml arguments and output files.
+
+```{r, eval = F}
+fitASfunc<-function(fixedFormula,randFormula,MultiTrialTraitData,...){
+  # test arguments for function
+  # ----------------------
+  # MultiTrialTraitData<-dbdata$MultiTrialTraitData[[7]]
+  # #Trait<-dbdata$Trait[[7]]
+  # fixedFormula<-dbdata$fixedFormula[[7]]
+  # randFormula<-dbdata$randFormula[[7]]
+  #test<-fitASfunc(fixedFormula,randFormula,MultiTrialTraitData)
+  # ----------------------
+  MultiTrialTraitData %<>%
+    mutate(across(c(GID,yearInLoc,
+                    CompleteBlocks,
+                    IncompleteBlocks,
+                    trialInLocYr,
+                    repInTrial,
+                    blockInRep),as.factor)) %>% 
+    droplevels
+  
+  require(asreml); 
+  fixedFormula<-as.formula(fixedFormula)
+  randFormula<-as.formula(randFormula)
+  # fit asreml 
+  out<-asreml(fixed = fixedFormula,
+              random = randFormula,
+              data = MultiTrialTraitData, 
+              maxiter = 40, workspace=1000e6, 
+              na.action = na.method(x = "omit"))
+  #### extract residuals - Round 1
+  
+  outliers1<-which(abs(scale(out$residuals))>3.3)
+  
+  if(length(outliers1)>0){
+    
+    x<-MultiTrialTraitData[-outliers1,]
+    # re-fit
+    out<-asreml(fixed = fixedFormula,
+                random = randFormula,
+                data = x, 
+                maxiter = 40, workspace=1000e6, 
+                na.action = na.method(x = "omit"))
+    #### extract residuals - Round 2
+    outliers2<-which(abs(scale(out$residuals))>3.3)
+    if(length(outliers2)>0){
+      #### remove outliers
+      x<-x[-outliers2,]
+      # final re-fit
+      out<-asreml(fixed = fixedFormula,
+                  random = randFormula,
+                  data = x, maxiter = 40,workspace=1000e6, 
+                  na.action = na.method(x = "omit"))
+    }
+  }
+  if(length(outliers1)==0){ outliers1<-NULL }
+  if(length(outliers2)==0){ outliers2<-NULL }
+  
+  ll<-summary(out,all=T)$loglik
+  varcomp<-summary(out,all=T)$varcomp
+  Vg<-varcomp["GID!GID","component"]
+  Ve<-varcomp["units!R","component"]
+  H2=Vg/(Vg+Ve)
+  blups<-summary(out,coef=T)$coef.random %>%
+    as.data.frame %>%
+    rownames_to_column(var = "GID") %>%
+    dplyr::select(GID,solution,std.error) %>%
+    filter(grepl("GID",GID)) %>%
+    rename(BLUP=solution) %>%
+    mutate(GID=gsub("GID_","",GID),
+           PEV=std.error^2, # asreml specific
+           REL=1-(PEV/Vg), # Reliability
+           drgBLUP=BLUP/REL, # deregressed BLUP
+           WT=(1-H2)/((0.1 + (1-REL)/REL)*H2)) # weight for use in Stage 2
+  out<-tibble(loglik=ll,Vg,Ve,H2,
+              blups=list(blups),
+              varcomp=list(varcomp),
+              outliers1=list(outliers1),
+              outliers2=list(outliers2))
+  gc()
+  return(out) }
+```
+
+## Run asreml
+
+Ran in small chunks. Still learning SLURM scheduler used on server.
+
+```{r, eval = F}
+library(asreml)
+
+require(furrr); plan(multisession, workers = 4)
+options(future.globals.maxSize=+Inf); options(future.rng.onMisuse="ignore")
+test<-dbdata %>%
+  mutate(fitAS=future_pmap(.,fitASfunc))
+saveRDS(test,file=here::here("output","test_2022Aug25.rds"))
+plan(sequential)
+rm(test); gc()
+
+dbdata<-readRDS(here::here("output","test_2022Aug25.rds")) %>% 
+  select(-fixedFormula,-randFormula,-MultiTrialTraitData)
+dbdata %<>%
+  unnest(fitAS)
+```
+
+## Output file
+
+```{r, eval = F}
+saveRDS(dbdata,file=here::here("output","IITA_blupsForModelTraining_twostage_asreml_2022Aug25.rds"))
+```
+
+
+## Results
+
+See [Results](07-Results.html): Home for plots and summary tables.
+
+## Next step
+
+3. [Validate the pedigree obtained from cassavabase](03-validatePedigree.html): Before setting up a cross-validation scheme for predictions that depend on a correct pedigree, add a basic verification step to the pipeline. Not trying to fill unknown or otherwise correct the pedigree. Assess evidence that relationship is correct, remove if incorrect.
+

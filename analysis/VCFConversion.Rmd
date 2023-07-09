@@ -1,0 +1,61 @@
+---
+title: "VCFConversion"
+author: "LucianoRogerio"
+date: "2022-08-01"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Check files
+
+```{r Check files, eval = F}
+library(tidyverse); library(magrittr); 
+library(genomicMateSelectR)
+
+dartvcfInput<-here::here("data/Report-DCas22-7004","Report_7004_VCF_Ref_Version6.txt")
+dartcountsInput<-here::here("data/Report-DCas22-7004","SEQ_SNPs_counts_0_Target_extend_Ref.csv")
+outName<-here::here("data/Report-DCas22-7004","DCas22_7004")
+nskipvcf<-2; nskipcounts<-2; ncores<-10
+
+vcf<-read.table(dartvcfInput,
+                stringsAsFactors = F,skip = nskipvcf, header = T, sep = "\t", comment.char = "")
+readCounts<-read.csv(dartcountsInput, stringsAsFactors = F,header = T,skip=nskipcounts)
+
+dim(vcf)
+# [1] 13603  1485
+dim(readCounts)
+# [1] 27206  1511
+```
+
+## Convert DArT report to VCF file
+
+```{r DArT Conversion to VCF, eval = F}
+genomicMateSelectR::convertDart2vcf(dartvcfInput,dartcountsInput,outName,
+                                    nskipvcf=2,nskipcounts=2,ncores)
+```
+
+## Genomewide to per Chromosome VCFs
+
+Split the VCF into chromosomes for imputation step.
+
+```{r Spliting VCF, eval = F}
+require(furrr); plan(multicore, workers = 10)
+options(future.globals.maxSize=+Inf); options(future.rng.onMisuse="ignore")
+  
+vcfIn<-here::here("data/Report-DCas22-7004","DCas22_7004.vcf.gz")
+filters<-"--minDP 4 --maxDP 50" # because using GT not PL for impute (Beagle5)
+outPath<-here::here("data/Report-DCas22-7004/")
+outSuffix<-"DCas22_7004"
+
+future_map(1:18,
+           ~genomicMateSelectR::splitVCFbyChr(Chr=.,
+                                              vcfIn=vcfIn,filters=filters,
+                                              outPath=outPath,
+                                              outSuffix=outSuffix))
+plan(sequential)
+```
+
+## Next step
+
+[Impute DCas22-7004](Imputation.html): with West Africa reference panel merged with additional GS progeny (IITA TMS18)

@@ -1,0 +1,472 @@
+---
+title: "Parent-wise and standard cross-validation"
+author: "LucianoRogerio"
+date: "2022-08-31"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Previous step
+
+4. [Preprocess data files:](04-PreprocessDataFiles.html) Prepare haplotype and dosage matrices, pedigree and BLUPs, genetic map and recombination frequency matrix, for use in predictions.
+
+
+## Parent-wise cross-validation
+**Assess the accuracy of predicted previously unobserved crosses.**
+
+
+```{bash}
+# 1) go to the working directory
+cd /workdir/lbraatz/IITA_2022GS
+# 2) start a screen shell called Luciano
+screen -R Luciano; # or screen -r if re-attaching...
+# 3) start the singularity Linux shell inside that
+#singularity shell /workdir/$USER/rocker.sif; 
+singularity shell ../rocker2.sif; 
+# 4) Start R
+R
+```
+
+```{r}
+# NEEDED LIBRARIES
+.libPaths("~/R/x86_64-pc-linux-gnu-library/4.1")
+require(tidyverse); require(magrittr); library(qs)
+library(genomicMateSelectR)
+
+# PEDIGREE
+ped<-read.table(here::here("output","verified_ped.txt"),
+                header = T, stringsAsFactors = F) %>% 
+  rename(GID=FullSampleName,
+         damID=DamID,
+         sireID=SireID) %>% 
+  dplyr::select(GID,sireID,damID)
+
+# Keep only families with _at least_ 2 offspring
+ped %<>%
+  semi_join(ped %>% count(sireID,damID) %>% filter(n>1) %>% ungroup())
+
+# BLUPs
+blups<-readRDS(file=here::here("data","blups_forGP.rds")) %>% 
+  dplyr::select(-varcomp)
+
+# DOSAGE MATRIX (UNFILTERED)
+dosages<-readRDS(file=here::here("data","dosages_IITA_2022Aug31.rds"))
+
+# RECOMBINATION FREQUENCY MATRIX (UNFILTERED)
+recombFreqMat<-qread(file=here::here("data",
+                                     "recombFreqMat_1minus2c_2021Aug02.qs"))
+
+# HAPLOTYPE MATRIX (UNFILTERED)
+## keep only haplos for parents-in-the-pedigree
+## those which will be used in prediction, saves memory
+haploMat<-readRDS(file=here::here("data","haps_IITA_2022Aug31.rds"))
+parents<-union(ped$sireID,ped$damID) 
+parenthaps<-sort(c(paste0(parents,"_HapA"),
+                   paste0(parents,"_HapB")))
+haploMat<-haploMat[parenthaps,]
+
+# SNP SETS TO ANALYZE
+snpsets<-readRDS(file = here::here("data","snpsets.rds"))
+
+# SELECTION INDEX WEIGHTS
+## from IYR+IK
+## note that not ALL predicted traits are on index
+SIwts<-c(logFYLD=20,
+         HI=10,
+         DM=15,
+         MCMDS=-10,
+         logRTNO=12,
+         logDYLD=20,
+         logTOPYLD=15,
+         PLTHT=10) 
+```
+
+### Reduced Set - server: cbsulm10, 64 cores, 512GB RAM, CentOS 7.6.1810
+
+Sep  1 14:43:59 2022
+
+```{r}
+snpSet<-"reduced_set"
+grms<-list(A=readRDS(here::here("output","kinship_A_ReducedSNPset_IITA_2022Aug31.rds")), 
+           D=readRDS(here::here("output","kinship_Dgeno_ReducedSNPset_IITA_2022Aug31.rds")))
+
+snps2keep<-snpsets %>% 
+  filter(Set==snpSet) %>% 
+  select(snps2keep) %>% 
+  unnest(snps2keep)
+
+dosages<-dosages[,snps2keep$FULL_SNP_ID]
+haploMat<-haploMat[,snps2keep$FULL_SNP_ID]
+recombFreqMat<-recombFreqMat[snps2keep$FULL_SNP_ID,snps2keep$FULL_SNP_ID]
+rm(snpsets); gc()
+
+starttime<-proc.time()[3]
+parentWiseCV<-runParentWiseCrossVal(nrepeats=5,nfolds=5,seed=121212,
+                                    modelType="DirDom",
+                                    ncores=12,nBLASthreads=5,
+                                    outName=NULL,
+                                    ped=ped,
+                                    blups=blups,
+                                    dosages=dosages,
+                                    haploMat=haploMat,
+                                    grms=grms,
+                                    recombFreqMat = recombFreqMat,
+                                    selInd = TRUE, SIwts = SIwts)
+saveRDS(parentWiseCV,
+        file = here::here("output",
+                          paste0("parentWiseCV_",snpSet,"_CrossPredAccuracy.rds")))
+endtime<-proc.time()[3]; print(paste0("Time elapsed: ",
+                                      round((endtime-starttime)/60,3)," mins"))
+```
+
+```
+[1] "Marker-effects Computed. Took  4.21452 hrs"
+[1] "Predicting cross variances and covariances"
+Joining, by = c("Repeat", "Fold")
+[1] "Done predicting fam vars. Took 8.69 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 4.84 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 8.75 mins for 193 crosses"
+[1] "Done predicting fam vars. Took 4.58 mins for 193 crosses"
+[1] "Done predicting fam vars. Took 9.77 mins for 226 crosses"
+[1] "Done predicting fam vars. Took 5.14 mins for 226 crosses"
+[1] "Done predicting fam vars. Took 8.67 mins for 208 crosses"
+[1] "Done predicting fam vars. Took 5.27 mins for 208 crosses"
+[1] "Done predicting fam vars. Took 8.83 mins for 214 crosses"
+[1] "Done predicting fam vars. Took 5.35 mins for 214 crosses"
+[1] "Done predicting fam vars. Took 9.38 mins for 221 crosses"
+[1] "Done predicting fam vars. Took 5.41 mins for 221 crosses"
+[1] "Done predicting fam vars. Took 8.88 mins for 197 crosses"
+
+[1] "Accuracies predicted. Took  10.47261 hrs total.Goodbye!"
+
+[1] "Time elapsed: 628.393 mins"
+```
+
+
+### Medium Set - server: cbsulm32, 112 cores, 512GB RAM, CentOS 7.6.1810
+Sep  1 10:34:03 2022
+
+
+```{r}
+snpSet<-"medium_set"
+grms<-list(A=readRDS(here::here("output","kinship_A_MediumSNPset_IITA_2022Aug31.rds")), 
+           D=readRDS(here::here("output","kinship_Dgeno_MediumSNPset_IITA_2022Aug31.rds")))
+
+snps2keep<-snpsets %>% 
+  filter(Set==snpSet) %>% 
+  select(snps2keep) %>% 
+  unnest(snps2keep)
+
+dosages<-dosages[,snps2keep$FULL_SNP_ID]
+haploMat<-haploMat[,snps2keep$FULL_SNP_ID]
+recombFreqMat<-recombFreqMat[snps2keep$FULL_SNP_ID,snps2keep$FULL_SNP_ID]
+rm(snpsets); gc()
+
+starttime<-proc.time()[3]
+parentWiseCV<-runParentWiseCrossVal(nrepeats=5,nfolds=5,seed=121212,
+                                    modelType="DirDom",
+                                    ncores=20,nBLASthreads=5,
+                                    outName=NULL,
+                                    ped=ped,
+                                    blups=blups,
+                                    dosages=dosages,
+                                    haploMat=haploMat,
+                                    grms=grms,
+                                    recombFreqMat = recombFreqMat,
+                                    selInd = TRUE, SIwts = SIwts)
+saveRDS(parentWiseCV,
+        file = here::here("output",
+                          paste0("parentWiseCV_",snpSet,"_CrossPredAccuracy.rds")))
+endtime<-proc.time()[3]; print(paste0("Time elapsed: ",
+                                      round((endtime-starttime)/60,3)," mins"))
+```
+
+```
+[1] "Marker-effects Computed. Took  1.18927 hrs"
+[1] "Predicting cross variances and covariances"
+Joining, by = c("Repeat", "Fold")
+[1] "Done predicting fam vars. Took 8.02 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 3.87 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 7.71 mins for 193 crosses"
+[1] "Done predicting fam vars. Took 3.70 mins for 193 crosses"
+[1] "Done predicting fam vars. Took 8.92 mins for 226 crosses"
+[1] "Done predicting fam vars. Took 4.09 mins for 226 crosses"
+[1] "Done predicting fam vars. Took 8.49 mins for 208 crosses"
+[1] "Done predicting fam vars. Took 3.89 mins for 208 crosses"
+[1] "Done predicting fam vars. Took 8.60 mins for 214 crosses"
+[1] "Done predicting fam vars. Took 3.96 mins for 214 crosses"
+[1] "Done predicting fam vars. Took 8.81 mins for 221 crosses"
+[1] "Done predicting fam vars. Took 4.04 mins for 221 crosses"
+[1] "Done predicting fam vars. Took 7.91 mins for 197 crosses"
+[1] "Done predicting fam vars. Took 3.82 mins for 197 crosses"
+[1] "Done predicting fam vars. Took 8.20 mins for 204 crosses"
+[1] "Done predicting fam vars. Took 3.83 mins for 204 crosses"
+[1] "Done predicting fam vars. Took 9.27 mins for 224 crosses"
+[1] "Done predicting fam vars. Took 4.26 mins for 224 crosses"
+[1] "Done predicting fam vars. Took 7.72 mins for 191 crosses"
+[1] "Done predicting fam vars. Took 3.56 mins for 191 crosses"
+[1] "Done predicting fam vars. Took 7.42 mins for 178 crosses"
+[1] "Done predicting fam vars. Took 3.43 mins for 178 crosses"
+[1] "Done predicting fam vars. Took 9.62 mins for 240 crosses"
+[1] "Done predicting fam vars. Took 4.40 mins for 240 crosses"
+[1] "Done predicting fam vars. Took 8.06 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 3.67 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 7.54 mins for 182 crosses"
+[1] "Done predicting fam vars. Took 3.38 mins for 182 crosses"
+[1] "Done predicting fam vars. Took 9.35 mins for 238 crosses"
+[1] "Done predicting fam vars. Took 4.27 mins for 238 crosses"
+[1] "Done predicting fam vars. Took 7.84 mins for 183 crosses"
+[1] "Done predicting fam vars. Took 3.55 mins for 183 crosses"
+[1] "Done predicting fam vars. Took 7.35 mins for 170 crosses"
+[1] "Done predicting fam vars. Took 3.34 mins for 170 crosses"
+[1] "Done predicting fam vars. Took 8.73 mins for 216 crosses"
+[1] "Done predicting fam vars. Took 4.04 mins for 216 crosses"
+[1] "Done predicting fam vars. Took 9.87 mins for 252 crosses"
+[1] "Done predicting fam vars. Took 4.71 mins for 252 crosses"
+[1] "Done predicting fam vars. Took 8.29 mins for 201 crosses"
+[1] "Done predicting fam vars. Took 3.64 mins for 201 crosses"
+[1] "Done predicting fam vars. Took 9.90 mins for 261 crosses"
+[1] "Done predicting fam vars. Took 4.55 mins for 261 crosses"
+[1] "Done predicting fam vars. Took 6.95 mins for 166 crosses"
+[1] "Done predicting fam vars. Took 3.55 mins for 166 crosses"
+
+[1] "Accuracies predicted. Took  6.55315 hrs total.Goodbye!"
+
+[1] "Time elapsed: 393.206 mins"
+```
+### Full Set - cbsulm30 - 112 cores, 512 GB RAM - 2022
+
+```{r}
+snpSet<-"full_set"
+grms<-list(A=readRDS(here::here("output","kinship_A_IITA_2022Aug31.rds")), 
+           D=readRDS(here::here("output","kinship_Dgeno_IITA_2022Aug31.rds")))
+
+snps2keep<-snpsets %>% 
+  filter(Set==snpSet) %>% 
+  select(snps2keep) %>% 
+  unnest(snps2keep)
+
+dosages<-dosages[,snps2keep$FULL_SNP_ID]
+haploMat<-haploMat[,snps2keep$FULL_SNP_ID]
+recombFreqMat<-recombFreqMat[snps2keep$FULL_SNP_ID,snps2keep$FULL_SNP_ID]
+rm(snpsets); gc()
+
+starttime<-proc.time()[3]
+parentWiseCV<-runParentWiseCrossVal(nrepeats=5,nfolds=5,seed=121212,
+                                    modelType="DirDom",
+                                    ncores=20,nBLASthreads=5,
+                                    outName=NULL,
+                                    ped=ped,
+                                    blups=blups,
+                                    dosages=dosages,
+                                    haploMat=haploMat,
+                                    grms=grms,
+                                    recombFreqMat = recombFreqMat,
+                                    selInd = TRUE, SIwts = SIwts)
+saveRDS(parentWiseCV,
+        file = here::here("output",
+                          paste0("parentWiseCV_",snpSet,"_CrossPredAccuracy.rds")))
+endtime<-proc.time()[3]; print(paste0("Time elapsed: ",
+                                      round((endtime-starttime)/60,3)," mins"))
+```
+
+```
+[1] "Marker-effects Computed. Took  2.0044 hrs"
+[1] "Predicting cross variances and covariances"
+Joining, by = c("Repeat", "Fold")
+[1] "Done predicting fam vars. Took 34.64 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 13.42 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 33.72 mins for 193 crosses"
+[1] "Done predicting fam vars. Took 12.80 mins for 193 crosses"
+[1] "Done predicting fam vars. Took 39.58 mins for 226 crosses"
+[1] "Done predicting fam vars. Took 14.88 mins for 226 crosses"
+[1] "Done predicting fam vars. Took 37.08 mins for 208 crosses"
+[1] "Done predicting fam vars. Took 14.17 mins for 208 crosses"
+[1] "Done predicting fam vars. Took 37.35 mins for 214 crosses"
+[1] "Done predicting fam vars. Took 14.15 mins for 214 crosses"
+[1] "Done predicting fam vars. Took 37.55 mins for 221 crosses"
+[1] "Done predicting fam vars. Took 14.24 mins for 221 crosses"
+[1] "Done predicting fam vars. Took 35.59 mins for 197 crosses"
+[1] "Done predicting fam vars. Took 13.8 mins for 197 crosses"
+[1] "Done predicting fam vars. Took 34.49 mins for 204 crosses"
+[1] "Done predicting fam vars. Took 13.84 mins for 204 crosses"
+[1] "Done predicting fam vars. Took 39.37 mins for 224 crosses"
+[1] "Done predicting fam vars. Took 15.24 mins for 224 crosses"
+[1] "Done predicting fam vars. Took 32.94 mins for 191 crosses"
+[1] "Done predicting fam vars. Took 12.62 mins for 191 crosses"
+[1] "Done predicting fam vars. Took 30.41 mins for 178 crosses"
+[1] "Done predicting fam vars. Took 11.75 mins for 178 crosses"
+[1] "Done predicting fam vars. Took 41.79 mins for 240 crosses"
+[1] "Done predicting fam vars. Took 15.84 mins for 240 crosses"
+[1] "Done predicting fam vars. Took 33.72 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 13.33 mins for 200 crosses"
+[1] "Done predicting fam vars. Took 32.23 mins for 182 crosses"
+[1] "Done predicting fam vars. Took 12.31 mins for 182 crosses"
+[1] "Done predicting fam vars. Took 40.77 mins for 238 crosses"
+[1] "Done predicting fam vars. Took 15.72 mins for 238 crosses"
+[1] "Done predicting fam vars. Took 33.8 mins for 183 crosses"
+[1] "Done predicting fam vars. Took 13.19 mins for 183 crosses"
+[1] "Done predicting fam vars. Took 30.69 mins for 170 crosses"
+[1] "Done predicting fam vars. Took 12.01 mins for 170 crosses"
+[1] "Done predicting fam vars. Took 37.55 mins for 216 crosses"
+[1] "Done predicting fam vars. Took 14.41 mins for 216 crosses"
+[1] "Done predicting fam vars. Took 42.98 mins for 252 crosses"
+[1] "Done predicting fam vars. Took 16.63 mins for 252 crosses"
+
+[1] "Accuracies predicted. Took  23.16341 hrs total.Goodbye!"
+[1] "Time elapsed: 1389.822 mins"
+```
+
+## Standard clone-wise cross-validation
+
+**Run k-fold cross-validation and assess the accuracy of predicted previously unobserved genotypes (individuals) based on the available training data.**
+
+```{r}
+.libPaths("~/R/x86_64-pc-linux-gnu-library/4.1")
+# NEEDED LIBRARIES
+require(tidyverse); require(magrittr); library(qs)
+library(genomicMateSelectR)
+
+# BLUPs
+blups<-readRDS(file=here::here("data","blups_forGP.rds")) %>% 
+  dplyr::select(-varcomp) %>% 
+  rename(TrainingData=blups) # for compatibility with runCrossVal() function 
+
+# DOSAGE MATRIX (UNFILTERED)
+dosages<-readRDS(file=here::here("data","dosages_IITA_2022Aug31.rds"))
+
+# SNP SETS TO ANALYZE
+snpsets<-readRDS(file = here::here("data","snpsets.rds"))
+
+# SELECTION INDEX WEIGHTS
+## from IYR+IK
+## note that not ALL predicted traits are on index
+SIwts<-c(logFYLD=20,
+         HI=10,
+         DM=15,
+         MCMDS=-10,
+         logRTNO=12,
+         logDYLD=20,
+         logTOPYLD=15,
+         PLTHT=10) 
+```
+
+### Reduced Set - server information: cbsulm33, 112 cores, 512GB RAM, CentOS 7.6.1810
+Sep  1 16:21:41 2022
+
+```{r}
+snpSet<-"reduced_set"
+grms<-list(A=readRDS(here::here("output","kinship_A_ReducedSNPset_IITA_2022Aug31.rds")), 
+           D=readRDS(here::here("output","kinship_Dgeno_ReducedSNPset_IITA_2022Aug31.rds")))
+
+
+snps2keep<-snpsets %>% 
+  filter(Set==snpSet) %>% 
+  select(snps2keep) %>% 
+  unnest(snps2keep)
+
+dosages<-dosages[,snps2keep$FULL_SNP_ID]
+rm(snpsets); gc()
+
+starttime<-proc.time()[3]
+standardCV<-runCrossVal(blups=blups,
+                        modelType="DirDom",
+                        selInd=TRUE,SIwts=SIwts,
+                        grms=grms,dosages=dosages,
+                        nrepeats=5,nfolds=5,
+                        ncores=20,nBLASthreads=5,
+                        gid="GID",seed=424242)
+saveRDS(standardCV,
+        file = here::here("output",
+                          paste0("standardCV_",snpSet,"_ClonePredAccuracy.rds")))
+endtime<-proc.time()[3]; print(paste0("Time elapsed: ",
+                                      round((endtime-starttime)/60,3)," mins"))
+```
+
+```
+[1] "Time elapsed: 123.848 mins"
+```
+
+### Medium Set - server information: cbsulm34, 112 cores, 512GB RAM, CentOS 7.6.1810
+Sep  1 09:18:17 2022
+
+```{r}
+snpSet<-"medium_set"
+grms<-list(A=readRDS(here::here("output","kinship_A_MediumSNPset_IITA_2022Aug31.rds")), 
+           D=readRDS(here::here("output","kinship_Dgeno_MediumSNPset_IITA_2022Aug31.rds")))
+
+
+snps2keep<-snpsets %>% 
+  filter(Set==snpSet) %>% 
+  select(snps2keep) %>% 
+  unnest(snps2keep)
+
+dosages<-dosages[,snps2keep$FULL_SNP_ID]
+rm(snpsets); gc()
+
+starttime<-proc.time()[3]
+standardCV<-runCrossVal(blups=blups,
+                        modelType="DirDom",
+                        selInd=TRUE,SIwts=SIwts,
+                        grms=grms,dosages=dosages,
+                        nrepeats=5,nfolds=5,
+                        ncores=20,nBLASthreads=5,
+                        gid="GID",seed=424242)
+saveRDS(standardCV,
+        file = here::here("output",
+                          paste0("standardCV_",snpSet,"_ClonePredAccuracy.rds")))
+endtime<-proc.time()[3]; print(paste0("Time elapsed: ",
+                                      round((endtime-starttime)/60,3)," mins"))
+```
+
+```
+[1] "Time elapsed: 124.958 mins"
+```
+
+
+### Full Set - server information: cbsulm33, 112 cores, 512GB RAM, CentOS 7.6.1810
+Sep  1 16:21:41 2022
+
+```{r}
+snpSet<-"full_set"
+grms<-list(A=readRDS(here::here("output","kinship_A_IITA_2022Aug31.rds")), 
+           D=readRDS(here::here("output","kinship_Dgeno_IITA_2022Aug31.rds")))
+
+
+snps2keep<-snpsets %>% 
+  filter(Set==snpSet) %>% 
+  select(snps2keep) %>% 
+  unnest(snps2keep)
+
+dosages<-dosages[,snps2keep$FULL_SNP_ID]
+rm(snpsets); gc()
+
+starttime<-proc.time()[3]
+standardCV<-runCrossVal(blups=blups,
+                        modelType="DirDom",
+                        selInd=TRUE,SIwts=SIwts,
+                        grms=grms,dosages=dosages,
+                        nrepeats=5,nfolds=5,
+                        ncores=15,nBLASthreads=7,
+                        gid="GID",seed=424242)
+saveRDS(standardCV,
+        file = here::here("output",
+                          paste0("standardCV_",snpSet,"_ClonePredAccuracy.rds")))
+endtime<-proc.time()[3]; print(paste0("Time elapsed: ",
+                                      round((endtime-starttime)/60,3)," mins"))
+```
+
+```
+[1] "Time elapsed: 149.676 mins"
+```
+
+
+## Next step / Results
+6. [Genomic predictions:](06-GenomicPredictions.html)
+- First, predict of individual GEBV/GETGV for all selection candidates using all available data and return marker effects for use downstream.
+- Next, Select a top set of candidate parents, for whom we would like to predict cross performances.
+- Finally, predict all pairwise crosses of candidate parents and evaluate them for genomic mate selection.
+- Select the top crosses and plant a crossing nursery with the parents indicated.
+
+[Cross-validation results here](https://wolfemd.github.io/IITA_2021GS/07-Results.html#Prediction_accuracy_estimates)
