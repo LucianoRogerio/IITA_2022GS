@@ -28,7 +28,7 @@ This is the only step like this in the pipeline.
 
 cbsumezey03 is using a SLURM job scheduler now. According to instructions, start an interactive bash shell with requested amount of recources, as follows:
 
-```{bash, eval = F}
+```{bash Especify the hardware to be used in analysis, eval = F}
 screen -R Luciano;
 cd /workdir/lbraatz/IITA_2021GS/;
 salloc -n20  --mem=100G;
@@ -42,7 +42,7 @@ R;
 
 ## Set-up training datasets
 
-```{r, eval = F}
+```{r Prepare parameters, eval = F}
 library(tidyverse); library(magrittr);
 library(genomicMateSelectR)
 dbdata<-readRDS(here::here("output","IITA_ExptDesignsDetected_2022Aug24.rds"))
@@ -70,7 +70,7 @@ dbdata %>%
 Includes rounds of outlier removal and re-fitting.
 Updated for new asreml arguments and output files.
 
-```{r, eval = F}
+```{r Mixed Model Function, eval = F}
 fitASfunc<-function(fixedFormula,randFormula,MultiTrialTraitData,...){
   # test arguments for function
   # ----------------------
@@ -155,7 +155,7 @@ fitASfunc<-function(fixedFormula,randFormula,MultiTrialTraitData,...){
 
 Ran in small chunks. Still learning SLURM scheduler used on server.
 
-```{r, eval = F}
+```{r Asreml Model, eval = F}
 library(asreml)
 
 require(furrr); plan(multisession, workers = 4)
@@ -174,10 +174,15 @@ dbdata %<>%
 
 ## Output file
 
-```{r, eval = F}
+```{r Saving Results, eval = F}
 saveRDS(dbdata,file=here::here("output","IITA_blupsForModelTraining_twostage_asreml_2022Aug25.rds"))
 ```
 
+## [Home](index.html)
+
+## [Last step]
+
+1.2 [Phenotyping Data Curation](cleanTPdata.html)
 
 ## Results
 

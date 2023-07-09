@@ -90,8 +90,7 @@ pednames %<>%
                                                           ifelse(grepl("TMS15",germplasmName,ignore.case = T),"TMS15",
                                                                  ifelse(grepl("TMS14",germplasmName,ignore.case = T),"TMS14",
                                                                         ifelse(grepl("TMS13|2013_",germplasmName,ignore.case = T),"TMS13","GGetc"))))))))))
-pednames %>% filter(Cohort == "GGetc") %>% .$germplasmName %>% .[19001:20000]
-  count(Cohort)
+pednames %>% count(Cohort)
 ```
 
 The names in the pedigree downloaded from cassavabase should match the names in the germplasmName variable in the plot-basis pheno data, also downloaded from cassavabase. From that plot-basis data, make a data.frame of the unique germplasmName-to-FullSampleName matches, where FullSampleName is the column with names matching VCF files / DNA samples.
@@ -120,7 +119,6 @@ The `*.fam` file for the RefPanelAndGSprogeny VCF I will ultimately use to extra
 
 ```{r}
 gids_in_fam <- read.table(here::here("data", "IITADArTClones.csv"), sep = ",", header = T)
-length(gids_in_fam)
 ```
 
 I did not follow the next step as Marnin did, due to part of the DArT DNA sample names now is Plate_name+Accession_name, so I would be deleting the correct names if I associate that I should follow that pattern for the clones. But I already create a file with all the names and tag_names `IITADArTClones.csv` in data `folder`.
@@ -145,7 +143,7 @@ pednames2genos<-pednames %>%
   inner_join(phenos2genos) %>% 
   bind_rows(pednames %>%
               anti_join(phenos2genos) %>% 
-              inner_join(gids_in_fam))
+              inner_join(gids_in_fam, by = c("germplasmName" = "FullSampleName")))
 pednames2genos %>% count(Cohort) 
 ```
 
@@ -277,7 +275,7 @@ write.table(pednames,file=here::here("output","pednames2keep.txt"),
 
 Checked plink’s order-of-operations and combining –keep and –indep-pairwise in the same filter call should result in the correct ordering: first subset samples, then LD prune.
 
-```{bash}
+```{bash, eval = F}
 cd /workdir/lbraatz/IITA_2022GS/
 export PATH=/programs/plink-1.9-x86_64-beta3.30:$PATH;
 plink --bfile output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31 \
@@ -321,11 +319,6 @@ ped2check_genome<-genome %>%
   bind_rows(genome %>% semi_join(ped2check %>% rename(IID1=V1,IID2=V3))) %>% 
   bind_rows(genome %>% semi_join(ped2check %>% rename(IID1=V3,IID2=V1)))
 saveRDS(ped2check_genome,file=here::here("output","ped2check_genome.rds"))
-```
-
-```{bash}
-cd /workdir/lbraatz/IITA_2022GS/output/;
-rm pednames_Prune100_25_pt25.genome
 ```
 
 

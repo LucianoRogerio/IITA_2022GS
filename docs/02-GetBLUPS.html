@@ -11,9 +11,9 @@
 
 <meta name="author" content="LucianoRogerio" />
 
-<meta name="date" content="2022-08-01" />
+<meta name="date" content="2022-08-25" />
 
-<title>Imputation</title>
+<title>Get BLUPS combining all trial data</title>
 
 <script src="site_libs/header-attrs-2.21/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -351,9 +351,9 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Imputation</h1>
+<h1 class="title toc-ignore">Get BLUPS combining all trial data</h1>
 <h4 class="author">LucianoRogerio</h4>
-<h4 class="date">2022-08-01</h4>
+<h4 class="date">2022-08-25</h4>
 
 </div>
 
@@ -361,7 +361,7 @@ div.tocify {
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
 <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
-workflowr <span class="glyphicon glyphicon-exclamation-sign text-danger"
+workflowr <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span>
 </button>
 </p>
@@ -372,8 +372,8 @@ aria-hidden="true"></span>
 </li>
 <li>
 <a data-toggle="tab" href="#checks"> Checks <span
-class="glyphicon glyphicon-exclamation-sign text-danger"
-aria-hidden="true"></span> </a>
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
 </li>
 <li>
 <a data-toggle="tab" href="#versions">Past versions</a>
@@ -386,9 +386,9 @@ aria-hidden="true"></span> </a>
 </p>
 <p>
 <strong>Checks:</strong> <span
-class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 6
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7
 <span class="glyphicon glyphicon-exclamation-sign text-danger"
-aria-hidden="true"></span> 1
+aria-hidden="true"></span> 0
 </p>
 <p>
 <strong>Knit directory:</strong> <code>IITA_2022GS/</code> <span
@@ -411,21 +411,18 @@ versions</em> tab lists the development history.
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguncommittedchanges">
-<span class="glyphicon glyphicon-exclamation-sign text-danger"
-aria-hidden="true"></span> <strong>R Markdown file:</strong> uncommitted
-changes </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
 </p>
 </div>
-<div id="strongRMarkdownfilestronguncommittedchanges"
+<div id="strongRMarkdownfilestronguptodate"
 class="panel-collapse collapse">
 <div class="panel-body">
-<p>The R Markdown file has unstaged changes. To know which version of
-the R Markdown file created these results, you’ll want to first commit
-it to the Git repo. If you’re still working on the analysis, you can
-ignore this warning. When you’re finished, you can run
-<code>wflow_publish</code> to commit the R Markdown file and build the
-HTML.</p>
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
 </div>
 </div>
 </div>
@@ -516,15 +513,15 @@ project makes it easier to run your code on other machines.</p>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomLucianoRogerioIITA2022GStree2c06448fa7ca1623d7aa6261fede1812330f6a16targetblank2c06448a">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomLucianoRogerioIITA2022GStree60f298522a0065ae91200c6e0497e4edb9ab8e65targetblank60f2985a">
 <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span> <strong>Repository version:</strong>
-<a href="https://github.com/LucianoRogerio/IITA_2022GS/tree/2c06448fa7ca1623d7aa6261fede1812330f6a16" target="_blank">2c06448</a>
+<a href="https://github.com/LucianoRogerio/IITA_2022GS/tree/60f298522a0065ae91200c6e0497e4edb9ab8e65" target="_blank">60f2985</a>
 </a>
 </p>
 </div>
 <div
-id="strongRepositoryversionstrongahrefhttpsgithubcomLucianoRogerioIITA2022GStree2c06448fa7ca1623d7aa6261fede1812330f6a16targetblank2c06448a"
+id="strongRepositoryversionstrongahrefhttpsgithubcomLucianoRogerioIITA2022GStree60f298522a0065ae91200c6e0497e4edb9ab8e65targetblank60f2985a"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -534,7 +531,7 @@ reproducibility.
 </p>
 <p>
 The results in this page were generated with repository version
-<a href="https://github.com/LucianoRogerio/IITA_2022GS/tree/2c06448fa7ca1623d7aa6261fede1812330f6a16" target="_blank">2c06448</a>.
+<a href="https://github.com/LucianoRogerio/IITA_2022GS/tree/60f298522a0065ae91200c6e0497e4edb9ab8e65" target="_blank">60f2985</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -550,12 +547,9 @@ were generated:
 <pre><code>
 Ignored files:
     Ignored:    .Rproj.user/
-
-Unstaged changes:
-    Modified:   analysis/02-GetBLUPS.Rmd
-    Modified:   analysis/Imputation.Rmd
-    Modified:   analysis/cleanTPdata.rmd
-    Modified:   analysis/index.Rmd
+    Ignored:    data/2022-07-27T091701phenotype_download.csv
+    Ignored:    output/IITA_CleanedTrialData_2022Aug24.rds
+    Ignored:    output/IITA_ExptDesignsDetected_2022Aug24.rds
 
 </code></pre>
 <p>
@@ -573,9 +567,9 @@ have uncommitted changes.
 
 <p>
 These are the previous versions of the repository in which changes were
-made to the R Markdown (<code>analysis/Imputation.Rmd</code>) and HTML
-(<code>docs/Imputation.html</code>) files. If you’ve configured a remote
-Git repository (see <code>?wflow_git_remote</code>), click on the
+made to the R Markdown (<code>analysis/02-GetBLUPS.Rmd</code>) and HTML
+(<code>docs/02-GetBLUPS.html</code>) files. If you’ve configured a
+remote Git repository (see <code>?wflow_git_remote</code>), click on the
 hyperlinks in the table below to view the files as they were in that
 past version.
 </p>
@@ -606,7 +600,7 @@ Message
 Rmd
 </td>
 <td>
-<a href="https://github.com/LucianoRogerio/IITA_2022GS/blob/2c06448fa7ca1623d7aa6261fede1812330f6a16/analysis/Imputation.Rmd" target="_blank">2c06448</a>
+<a href="https://github.com/LucianoRogerio/IITA_2022GS/blob/60f298522a0065ae91200c6e0497e4edb9ab8e65/analysis/02-GetBLUPS.Rmd" target="_blank">60f2985</a>
 </td>
 <td>
 LucianoRogerio
@@ -615,15 +609,15 @@ LucianoRogerio
 2023-07-09
 </td>
 <td>
-Update Github page
+Update website
 </td>
 </tr>
 <tr>
 <td>
-html
+Rmd
 </td>
 <td>
-<a href="https://rawcdn.githack.com/LucianoRogerio/IITA_2022GS/2c06448fa7ca1623d7aa6261fede1812330f6a16/docs/Imputation.html" target="_blank">2c06448</a>
+<a href="https://github.com/LucianoRogerio/IITA_2022GS/blob/2c06448fa7ca1623d7aa6261fede1812330f6a16/analysis/02-GetBLUPS.Rmd" target="_blank">2c06448</a>
 </td>
 <td>
 LucianoRogerio
@@ -642,158 +636,200 @@ Update Github page
 </div>
 </div>
 </div>
-<div id="introduction" class="section level2">
-<h2>Introduction</h2>
-<pre class="bash"><code>cp -r /home/jj332_cas/CassavaGenotypeData/CassavaGeneticMap /workdir/lbraatz/IITA_2022GS/data/.;
+<div id="previous-step" class="section level2">
+<h2>Previous step</h2>
+<p>Prepare training dataset: Download data from DB, “Clean” and format
+DB data.</p>
+</div>
+<div id="get-multi-trial-blups-from-raw-data-two-stage"
+class="section level2">
+<h2>Get multi-trial BLUPs from raw data (two-stage)</h2>
+<p>Two-stage procedure:</p>
+<ol style="list-style-type: decimal">
+<li>Fit mixed-model to multi-trial dataset and extract BLUPs,
+de-regressed BLUPs and weights. Include two rounds of outlier
+removal.</li>
+<li>Genomic prediction with drg-BLUPs from multi-trial analysis as
+input.</li>
+</ol>
+<p><strong>Work below represents Stage 1 of the Two-stage
+procedure.</strong></p>
+<p>To fit the mixed-model I used last year, I am again resorting to
+asreml. I fit random effects for rep and block only where complete and
+incomplete blocks, respectively are indicated in the trial design
+variables. <code>sommer</code> should be able to fit the same model via
+the at() function, but I am having trouble with it’s memory intnsity and
+sommer is much slower even without a dense covariance (i.e. a kinship),
+compared to <code>lme4::lmer()</code> or
+<code>asreml::asreml()</code>.</p>
+<p>To use <code>asreml</code> I require to access the license available
+only on robbins servers, I am actually using one called
+cbsumezey03.biohpc.cornell.edu.</p>
+<p>This is the only step like this in the pipeline.</p>
+<p>cbsumezey03 is using a SLURM job scheduler now. According to
+instructions, start an interactive bash shell with requested amount of
+recources, as follows:</p>
+<pre class="bash"><code>screen -R Luciano;
+cd /workdir/lbraatz/IITA_2021GS/;
+salloc -n20  --mem=100G;
+# salloc: Granted job allocation 833
+# salloc: Waiting for resource configuration
+# salloc: Nodes cbsurobbins are ready for job
+R;
 </code></pre>
 </div>
-<div id="impute-with-west-africa-refpanel" class="section level2">
-<h2>Impute with West Africa RefPanel</h2>
-<p>Impute with Beagle V5.0.</p>
-<p>Use the “imputation reference panel” dataset from 2021 merged with
-the imputed GS progeny,
-e.g. chr1_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz as reference
-for the current imputation. Downloaded from <a
-href="https://cassavabase.org/ftp/marnin_datasets/IITA_2021GS/output/">cassavabase
-FTP server</a></p>
-<p>Used cbsumezey03 Cornell CBSU machine (e.g. cbsumezey03; 20 cores,
-512 GB RAM), running 1 chromosome at a time.</p>
-<pre class="r"><code>targetVCFpath&lt;-here::here(&quot;data/Report-DCas22-7004/&quot;) # location of the targetVCF
-refVCFpath&lt;-here::here(&quot;data/&quot;)
-mapPath&lt;-here::here(&quot;data/CassavaGeneticMap/&quot;)
-outPath&lt;-here::here(&quot;output/&quot;)
-outSuffix&lt;-&quot;DCas22_7004&quot;
-
-library(tidyverse); library(magrittr); 
+<div id="set-up-training-datasets" class="section level2">
+<h2>Set-up training datasets</h2>
+<pre class="r"><code>library(tidyverse); library(magrittr);
 library(genomicMateSelectR)
-purrr::map(1:18,
-           ~genomicMateSelectR::runBeagle5(targetVCF=paste0(targetVCFpath,&quot;chr&quot;,.,
-                                                            &quot;_DCas22_7004.vcf.gz&quot;),
-                                           refVCF=paste0(refVCFpath,&quot;chr&quot;,.,
-                                                         &quot;_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz&quot;),
-                                           mapFile=paste0(mapPath,&quot;chr&quot;,.,
-                                                          &quot;_cassava_cM_pred.v6_91019.map&quot;),
-                                           outName=paste0(outPath,&quot;chr&quot;,.,
-                                                          &quot;_DCas22_7004_WA_REFimputed&quot;),
-                                           nthreads=20))
+dbdata&lt;-readRDS(here::here(&quot;output&quot;,&quot;IITA_ExptDesignsDetected_2022Aug24.rds&quot;))
+traits&lt;-c(&quot;MCMDS&quot;,&quot;DM&quot;,&quot;PLTHT&quot;,&quot;BRNHT1&quot;,&quot;BRLVLS&quot;,&quot;HI&quot;,
+          &quot;logDYLD&quot;, # &lt;-- logDYLD now included. 
+          &quot;logFYLD&quot;,&quot;logTOPYLD&quot;,&quot;logRTNO&quot;,&quot;TCHART&quot;,&quot;LCHROMO&quot;,&quot;ACHROMO&quot;,&quot;BCHROMO&quot;)
 
-purrr::map(3,
-           ~genomicMateSelectR::runBeagle5(window = 60, targetVCF=paste0(targetVCFpath,&quot;chr&quot;,.,
-                                                            &quot;_DCas22_7004.vcf.gz&quot;),
-                                           refVCF=paste0(refVCFpath,&quot;chr&quot;,.,
-                                                         &quot;_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz&quot;),
-                                           mapFile=paste0(mapPath,&quot;chr&quot;,.,
-                                                          &quot;_cassava_cM_pred.v6_91019.map&quot;),
-                                           outName=paste0(outPath,&quot;chr&quot;,.,
-                                                          &quot;_DCas22_7004_WA_REFimputed&quot;),
-                                           nthreads=20))</code></pre>
-<p>Clean up Beagle log files after run. Move to sub-directory
-output/BeagleLogs/.</p>
-<pre class="bash"><code>cd /workdir/lbraatz/IITA_2022GS/output/; 
-mkdir BeagleLogs;
-cp *_DCas22_7004_WA_REFimputed.log BeagleLogs/
-cp -r BeagleLogs /home/jj332_cas/lbraatz/IITA_2022GS/output/
-cp *_DCas22_7004_WA_REFimputed* /home/jj332_cas/lbraatz/IITA_2022GS/output/
-cp *_DCas22_7004_WA_REFimputed.vcf.gz /home/jj332_cas/lbraatz/IITA_2022GS/output/</code></pre>
-<p>##Post-impute filter</p>
-<p>Standard post-imputation filter: AR2&gt;0.75 (DR2&gt;0.75 as of
-Beagle5.0), P_HWE&gt;1e-20, MAF&gt;0.005 [0.5%].</p>
-<p>Loop to filter all 18 VCF files in parallel</p>
-<pre class="r"><code>inPath&lt;-here::here(&quot;output/&quot;)
-outPath&lt;-here::here(&quot;output/&quot;)
-require(furrr); plan(multicore, workers = 18)
-future_map(1:18,
-           ~genomicMateSelectR::postImputeFilter(inPath=inPath,
-                                                 inName=paste0(&quot;chr&quot;,.,&quot;_DCas22_7004_WA_REFimputed&quot;),
-                                                 outPath=outPath,
-                                                 outName=paste0(&quot;chr&quot;,.,&quot;_DCas22_7004_WA_REFimputedAndFiltered&quot;)))
-plan(sequential)</code></pre>
-<p>Check what’s left</p>
-<pre class="r"><code>purrr::map(1:18,~system(paste0(&quot;zcat &quot;,here::here(&quot;output/&quot;),&quot;chr&quot;,.,&quot;_DCas22_7004_WA_REFimputedAndFiltered.vcf.gz | wc -l&quot;)))
-# Chr01 - 7,321
-# Chr02 - 3,517
-# Chr03 - 3,606
-# Chr04 - 3,050
-# Chr05 - 3,644
-# Chr06 - 3,324
-# Chr07 - 1,633
-# Chr08 - 3,082
-# Chr09 - 3,208
-# Chr10 - 2,484
-# Chr11 - 2,803
-# Chr12 - 2,700
-# Chr13 - 2,478
-# Chr14 - 4,911
-# Chr15 - 3,414
-# Chr16 - 2,672
-# Chr17 - 2,429
-# Chr18 - 2,732</code></pre>
-<pre class="bash"><code>cd /workdir/lbraatz/IITA_2022GS/output/;
-cp -r *_DCas22_7004_WA_REFimputed* /home/jj332_cas/lbraatz/IITA_2022GS/output/</code></pre>
+# **Nest by trait.** Need to restructure the data from per-trial by regrouping by trait. 
+dbdata&lt;-nestDesignsDetectedByTraits(dbdata,traits)
+
+dbdata %&gt;% mutate(N_blups=map_dbl(MultiTrialTraitData,nrow)) %&gt;% rmarkdown::paged_table()
+
+dbdata %&lt;&gt;%
+  mutate(fixedFormula=ifelse(Trait %in% c(&quot;logDYLD&quot;,&quot;logFYLD&quot;,&quot;logRTNO&quot;,&quot;logTOPYLD&quot;),
+                             &quot;Value ~ yearInLoc + PropNOHAV&quot;,&quot;Value ~ yearInLoc&quot;),
+         randFormula=paste0(&quot;~idv(GID) + idv(trialInLocYr) + at(CompleteBlocks,&#39;Yes&#39;):repInTrial &quot;,
+                            &quot;+ at(IncompleteBlocks,&#39;Yes&#39;):blockInRep&quot;))
+dbdata %&gt;%
+  mutate(Nobs=map_dbl(MultiTrialTraitData,nrow)) %&gt;%
+  select(Trait,Nobs,fixedFormula,randFormula) %&gt;%
+  rmarkdown::paged_table()</code></pre>
 </div>
-<div id="formats-for-downstream-analysis" class="section level2">
-<h2>Formats for downstream analysis</h2>
-<p>Need to create a genome-wide VCF with the RefPanel + DCas22_7004 VCFs
-merged.</p>
-<pre class="r"><code>require(furrr); plan(multicore, workers = 18)
-# 1. Subset RefPanel to sites remaining after post-impute filter of DCas22_7004
-future_map(1:18,~system(paste0(&quot;vcftools --gzvcf &quot;,
-                               &quot;/workdir/lbraatz/IITA_2022GS/data/chr&quot;,
-                               .,&quot;_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz&quot;,&quot; &quot;,
-                               &quot;--positions &quot;,&quot;/workdir/lbraatz/IITA_2022GS/output/chr&quot;,.,
-                               &quot;_DCas22_7004_WA_REFimputed.sitesPassing&quot;,&quot; &quot;,
-                               &quot;--recode --stdout | bgzip -c -@ 24 &gt; &quot;,
-                               &quot;/workdir/lbraatz/IITA_2022GS/output/chr&quot;,.,
-                               &quot;_RefPanelAndGSprogeny2021Aug08_SubsetAndReadyToMerge.vcf.gz&quot;)))
+<div id="function-to-run-asreml" class="section level2">
+<h2>Function to run asreml</h2>
+<p>Includes rounds of outlier removal and re-fitting. Updated for new
+asreml arguments and output files.</p>
+<pre class="r"><code>fitASfunc&lt;-function(fixedFormula,randFormula,MultiTrialTraitData,...){
+  # test arguments for function
+  # ----------------------
+  # MultiTrialTraitData&lt;-dbdata$MultiTrialTraitData[[7]]
+  # #Trait&lt;-dbdata$Trait[[7]]
+  # fixedFormula&lt;-dbdata$fixedFormula[[7]]
+  # randFormula&lt;-dbdata$randFormula[[7]]
+  #test&lt;-fitASfunc(fixedFormula,randFormula,MultiTrialTraitData)
+  # ----------------------
+  MultiTrialTraitData %&lt;&gt;%
+    mutate(across(c(GID,yearInLoc,
+                    CompleteBlocks,
+                    IncompleteBlocks,
+                    trialInLocYr,
+                    repInTrial,
+                    blockInRep),as.factor)) %&gt;% 
+    droplevels
+  
+  require(asreml); 
+  fixedFormula&lt;-as.formula(fixedFormula)
+  randFormula&lt;-as.formula(randFormula)
+  # fit asreml 
+  out&lt;-asreml(fixed = fixedFormula,
+              random = randFormula,
+              data = MultiTrialTraitData, 
+              maxiter = 40, workspace=1000e6, 
+              na.action = na.method(x = &quot;omit&quot;))
+  #### extract residuals - Round 1
+  
+  outliers1&lt;-which(abs(scale(out$residuals))&gt;3.3)
+  
+  if(length(outliers1)&gt;0){
+    
+    x&lt;-MultiTrialTraitData[-outliers1,]
+    # re-fit
+    out&lt;-asreml(fixed = fixedFormula,
+                random = randFormula,
+                data = x, 
+                maxiter = 40, workspace=1000e6, 
+                na.action = na.method(x = &quot;omit&quot;))
+    #### extract residuals - Round 2
+    outliers2&lt;-which(abs(scale(out$residuals))&gt;3.3)
+    if(length(outliers2)&gt;0){
+      #### remove outliers
+      x&lt;-x[-outliers2,]
+      # final re-fit
+      out&lt;-asreml(fixed = fixedFormula,
+                  random = randFormula,
+                  data = x, maxiter = 40,workspace=1000e6, 
+                  na.action = na.method(x = &quot;omit&quot;))
+    }
+  }
+  if(length(outliers1)==0){ outliers1&lt;-NULL }
+  if(length(outliers2)==0){ outliers2&lt;-NULL }
+  
+  ll&lt;-summary(out,all=T)$loglik
+  varcomp&lt;-summary(out,all=T)$varcomp
+  Vg&lt;-varcomp[&quot;GID!GID&quot;,&quot;component&quot;]
+  Ve&lt;-varcomp[&quot;units!R&quot;,&quot;component&quot;]
+  H2=Vg/(Vg+Ve)
+  blups&lt;-summary(out,coef=T)$coef.random %&gt;%
+    as.data.frame %&gt;%
+    rownames_to_column(var = &quot;GID&quot;) %&gt;%
+    dplyr::select(GID,solution,std.error) %&gt;%
+    filter(grepl(&quot;GID&quot;,GID)) %&gt;%
+    rename(BLUP=solution) %&gt;%
+    mutate(GID=gsub(&quot;GID_&quot;,&quot;&quot;,GID),
+           PEV=std.error^2, # asreml specific
+           REL=1-(PEV/Vg), # Reliability
+           drgBLUP=BLUP/REL, # deregressed BLUP
+           WT=(1-H2)/((0.1 + (1-REL)/REL)*H2)) # weight for use in Stage 2
+  out&lt;-tibble(loglik=ll,Vg,Ve,H2,
+              blups=list(blups),
+              varcomp=list(varcomp),
+              outliers1=list(outliers1),
+              outliers2=list(outliers2))
+  gc()
+  return(out) }</code></pre>
+</div>
+<div id="run-asreml" class="section level2">
+<h2>Run asreml</h2>
+<p>Ran in small chunks. Still learning SLURM scheduler used on
+server.</p>
+<pre class="r"><code>library(asreml)
+
+require(furrr); plan(multisession, workers = 4)
+options(future.globals.maxSize=+Inf); options(future.rng.onMisuse=&quot;ignore&quot;)
+test&lt;-dbdata %&gt;%
+  mutate(fitAS=future_pmap(.,fitASfunc))
+saveRDS(test,file=here::here(&quot;output&quot;,&quot;test_2022Aug25.rds&quot;))
 plan(sequential)
+rm(test); gc()
 
-# 2. Merge RefPanel and DCas22_7004
-library(tidyverse); library(magrittr); library(genomicMateSelectR)
-inPath&lt;-here::here(&quot;output/&quot;)
-outPath&lt;-here::here(&quot;output/&quot;)
-future_map(1:18,~mergeVCFs(inPath=inPath,
-                           inVCF1=paste0(&quot;chr&quot;,.,&quot;_RefPanelAndGSprogeny2021Aug08_SubsetAndReadyToMerge&quot;),
-                           inVCF2=paste0(&quot;chr&quot;,.,&quot;_DCas22_7004_WA_REFimputedAndFiltered&quot;),
-                           outPath=outPath,
-                           outName=paste0(&quot;chr&quot;,.,&quot;_RefPanelAndGSprogeny_ReadyForGP_2022Aug03&quot;)))
-
-# 3. Concatenate chromosomes
-
-## Index with tabix first
-future_map(1:18,~system(paste0(&quot;tabix -f -p vcf &quot;,inPath,
-                               &quot;chr&quot;,.,&quot;_RefPanelAndGSprogeny_ReadyForGP_2022Aug03.vcf.gz&quot;)))
-plan(sequential)
-## bcftools concat
-system(paste0(&quot;bcftools concat &quot;,
-              &quot;--output &quot;,outPath,
-              &quot;AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug03.vcf.gz &quot;,
-              &quot;--output-type z --threads 18 &quot;,
-              paste0(inPath,&quot;chr&quot;,1:18,
-                     &quot;_RefPanelAndGSprogeny_ReadyForGP_2022Aug03.vcf.gz&quot;,
-                     collapse = &quot; &quot;)))
-
-## Remove the Old DS format of the VCF file
-
-system(paste0(&quot;bcftools annotate -x ^INFO/PASS,^FORMAT/GT &quot;,
-              &quot;AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug03.vcf.gz | &quot;,
-              &quot;bgzip -c -@20 &gt; &quot;,
-              &quot;AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31.vcf.gz&quot;))
-
-## Convert to binary blink (bed/bim/fam)
-inPath&lt;-here::here(&quot;output/&quot;)
-outPath&lt;-here::here(&quot;output/&quot;)
-vcfName&lt;-&quot;AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug31&quot;
-system(paste0(&quot;export PATH=/programs/plink-1.9-x86_64-beta3.30:$PATH;&quot;,
-              &quot;plink --vcf &quot;,inPath,vcfName,&quot;.vcf.gz &quot;,
-              &quot;--make-bed --const-fid --keep-allele-order &quot;,
-              &quot;--out &quot;,outPath,vcfName))</code></pre>
+dbdata&lt;-readRDS(here::here(&quot;output&quot;,&quot;test_2022Aug25.rds&quot;)) %&gt;% 
+  select(-fixedFormula,-randFormula,-MultiTrialTraitData)
+dbdata %&lt;&gt;%
+  unnest(fitAS)</code></pre>
+</div>
+<div id="output-file" class="section level2">
+<h2>Output file</h2>
+<pre class="r"><code>saveRDS(dbdata,file=here::here(&quot;output&quot;,&quot;IITA_blupsForModelTraining_twostage_asreml_2022Aug25.rds&quot;))</code></pre>
 </div>
 <div id="home" class="section level2">
 <h2><a href="index.html">Home</a></h2>
 </div>
-<div id="next-page" class="section level2">
-<h2>Next page</h2>
+<div id="last-step" class="section level2">
+<h2>[Last step]</h2>
 <p>1.2 <a href="cleanTPdata.html">Phenotyping Data Curation</a></p>
+</div>
+<div id="results" class="section level2">
+<h2>Results</h2>
+<p>See <a href="07-Results.html">Results</a>: Home for plots and summary
+tables.</p>
+</div>
+<div id="next-step" class="section level2">
+<h2>Next step</h2>
+<ol start="3" style="list-style-type: decimal">
+<li><a href="03-validatePedigree.html">Validate the pedigree obtained
+from cassavabase</a>: Before setting up a cross-validation scheme for
+predictions that depend on a correct pedigree, add a basic verification
+step to the pipeline. Not trying to fill unknown or otherwise correct
+the pedigree. Assess evidence that relationship is correct, remove if
+incorrect.</li>
+</ol>
 <br>
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">

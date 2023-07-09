@@ -13,7 +13,7 @@
 
 <title>Home</title>
 
-<script src="site_libs/header-attrs-2.16/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.21/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
@@ -30,6 +30,8 @@
        code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
        pre:not([class]) { background-color: white }</style>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 
 <link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
 <!-- Add a small amount of space between sections. -->
@@ -50,6 +52,16 @@ div.section {
   ul.task-list{list-style: none;}
     </style>
 
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
 
 
 
@@ -176,8 +188,8 @@ $(document).ready(function () {
   border-radius: 4px;
 }
 
-.tabset-dropdown > .nav-tabs > li.active:before {
-  content: "";
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
   font-family: 'Glyphicons Halflings';
   display: inline-block;
   padding: 10px;
@@ -185,16 +197,9 @@ $(document).ready(function () {
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-  content: "&#xe258;";
-  border: none;
-}
-
-.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-  content: "";
+  content: "\e258";
   font-family: 'Glyphicons Halflings';
-  display: inline-block;
-  padding: 10px;
-  border-right: 1px solid #ddd;
+  border: none;
 }
 
 .tabset-dropdown > .nav-tabs > li.active {
@@ -276,7 +281,7 @@ $(document).ready(function () {
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
 <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
-workflowr <span class="glyphicon glyphicon-ok text-success"
+workflowr <span class="glyphicon glyphicon-exclamation-sign text-danger"
 aria-hidden="true"></span>
 </button>
 </p>
@@ -287,8 +292,8 @@ aria-hidden="true"></span>
 </li>
 <li>
 <a data-toggle="tab" href="#checks"> Checks <span
-class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
-</a>
+class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> </a>
 </li>
 <li>
 <a data-toggle="tab" href="#versions">Past versions</a>
@@ -297,13 +302,13 @@ class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2022-10-07
+<strong>Last updated:</strong> 2023-07-09
 </p>
 <p>
 <strong>Checks:</strong> <span
-class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 2
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 1
 <span class="glyphicon glyphicon-exclamation-sign text-danger"
-aria-hidden="true"></span> 0
+aria-hidden="true"></span> 1
 </p>
 <p>
 <strong>Knit directory:</strong> <code>IITA_2022GS/</code> <span
@@ -326,33 +331,36 @@ versions</em> tab lists the development history.
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
-<span class="glyphicon glyphicon-ok text-success"
-aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
-</a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguncommittedchanges">
+<span class="glyphicon glyphicon-exclamation-sign text-danger"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> uncommitted
+changes </a>
 </p>
 </div>
-<div id="strongRMarkdownfilestronguptodate"
+<div id="strongRMarkdownfilestronguncommittedchanges"
 class="panel-collapse collapse">
 <div class="panel-body">
-<p>Great! Since the R Markdown file has been committed to the Git
-repository, you know the exact version of the code that produced these
-results.</p>
+<p>The R Markdown file has unstaged changes. To know which version of
+the R Markdown file created these results, you’ll want to first commit
+it to the Git repo. If you’re still working on the analysis, you can
+ignore this warning. When you’re finished, you can run
+<code>wflow_publish</code> to commit the R Markdown file and build the
+HTML.</p>
 </div>
 </div>
 </div>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomLucianoRogerioIITA2022GStree03a5b941251656dc4c331a2a7c37b87ead7f3cf6targetblank03a5b94a">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomLucianoRogerioIITA2022GStree2c06448fa7ca1623d7aa6261fede1812330f6a16targetblank2c06448a">
 <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span> <strong>Repository version:</strong>
-<a href="https://github.com/LucianoRogerio/IITA_2022GS/tree/03a5b941251656dc4c331a2a7c37b87ead7f3cf6" target="_blank">03a5b94</a>
+<a href="https://github.com/LucianoRogerio/IITA_2022GS/tree/2c06448fa7ca1623d7aa6261fede1812330f6a16" target="_blank">2c06448</a>
 </a>
 </p>
 </div>
 <div
-id="strongRepositoryversionstrongahrefhttpsgithubcomLucianoRogerioIITA2022GStree03a5b941251656dc4c331a2a7c37b87ead7f3cf6targetblank03a5b94a"
+id="strongRepositoryversionstrongahrefhttpsgithubcomLucianoRogerioIITA2022GStree2c06448fa7ca1623d7aa6261fede1812330f6a16targetblank2c06448a"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -362,7 +370,7 @@ reproducibility.
 </p>
 <p>
 The results in this page were generated with repository version
-<a href="https://github.com/LucianoRogerio/IITA_2022GS/tree/03a5b941251656dc4c331a2a7c37b87ead7f3cf6" target="_blank">03a5b94</a>.
+<a href="https://github.com/LucianoRogerio/IITA_2022GS/tree/2c06448fa7ca1623d7aa6261fede1812330f6a16" target="_blank">2c06448</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -377,33 +385,11 @@ were generated:
 </p>
 <pre><code>
 Ignored files:
-    Ignored:    .Rhistory
     Ignored:    .Rproj.user/
-    Ignored:    code/HelpSeren.R
-    Ignored:    data/chr10_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr11_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr12_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr13_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr14_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr15_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr16_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr17_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr18_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr1_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr2_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr3_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr4_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr5_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr6_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr7_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr8_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/chr9_RefPanelAndGSprogeny_ReadyForGP_2021Aug08.vcf.gz
-    Ignored:    data/dosages_IITA_2022Aug31.rds
-    Ignored:    output/AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug03Seren.vcf.gz
-    Ignored:    output/oldResults/
-    Ignored:    output/standardCV_full_set_ClonePredAccuracy.rds
-    Ignored:    output/standardCV_medium_set_ClonePredAccuracy.rds
-    Ignored:    output/standardCV_reduced_set_ClonePredAccuracy.rds
+
+Unstaged changes:
+    Modified:   analysis/Imputation.Rmd
+    Modified:   analysis/index.Rmd
 
 </code></pre>
 <p>
@@ -453,16 +439,33 @@ Message
 Rmd
 </td>
 <td>
-<a href="https://github.com/LucianoRogerio/IITA_2022GS/blob/03a5b941251656dc4c331a2a7c37b87ead7f3cf6/analysis/index.Rmd" target="_blank">03a5b94</a>
+<a href="https://github.com/LucianoRogerio/IITA_2022GS/blob/2c06448fa7ca1623d7aa6261fede1812330f6a16/analysis/index.Rmd" target="_blank">2c06448</a>
 </td>
 <td>
 LucianoRogerio
 </td>
 <td>
-2022-10-07
+2023-07-09
 </td>
 <td>
-Publish the results
+Update Github page
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/LucianoRogerio/IITA_2022GS/2c06448fa7ca1623d7aa6261fede1812330f6a16/docs/index.html" target="_blank">2c06448</a>
+</td>
+<td>
+LucianoRogerio
+</td>
+<td>
+2023-07-09
+</td>
+<td>
+Update Github page
 </td>
 </tr>
 <tr>
@@ -470,13 +473,13 @@ Publish the results
 Rmd
 </td>
 <td>
-<a href="https://github.com/LucianoRogerio/IITA_2022GS/blob/51dc80ea2463a86eac1509fc5a35db93aab9e2f4/analysis/index.Rmd" target="_blank">51dc80e</a>
+<a href="https://github.com/LucianoRogerio/IITA_2022GS/blob/792f5c169f0732fc1a285aedcc1bfe961e3f29f9/analysis/index.Rmd" target="_blank">792f5c1</a>
 </td>
 <td>
 LucianoRogerio
 </td>
 <td>
-2022-07-28
+2023-07-09
 </td>
 <td>
 Start workflowr project.
@@ -489,7 +492,19 @@ Start workflowr project.
 </div>
 </div>
 </div>
-<p>Welcome to my research website.</p>
+<p>This website has all the scripts used to apply genomic prediction to
+IITA GS population genotyped in 2022.</p>
+<div id="step-prepare-the-new-genotyping-data" class="section level2">
+<h2>1˚Step prepare the new Genotyping data</h2>
+<p><a href="Imputation.html">Imputation scripts</a></p>
+</div>
+<div
+id="step-prepare-all-the-phenotyping-data-available-in-cassabase-from-iita-trials"
+class="section level2">
+<h2>2˚Step prepare all the phenotyping data available in cassabase from
+IITA trials</h2>
+<p><a href="cleanTPdata.html">Phenotyping Data Curation</a></p>
+</div>
 
 
 <!-- Adjust MathJax settings so that all math formulae are shown using

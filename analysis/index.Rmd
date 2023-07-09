@@ -8,4 +8,13 @@ editor_options:
   chunk_output_type: console
 ---
 
-Welcome to my research website.
+This website has all the scripts used to apply genomic prediction to IITA GS population genotyped in 2022.
+
+## 1.1˚Step Preparing the new Genotyping data
+[Imputation scripts](Imputation.html)
+
+## 1.2˚Step prepare all the phenotyping data available in cassabase from IITA trials
+[Phenotyping Data Curation](cleanTPdata.html)
+
+## 2˚Step Get BLUPS combining all trial data
+[Mixed Models](02-GetBLUPS.html)

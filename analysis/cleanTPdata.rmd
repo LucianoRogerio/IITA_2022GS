@@ -32,6 +32,7 @@ Downloaded **all** NRCRI field trials.
 - 2022-07-27T093145metadata_download.csv
 ```
 
+
 ```{r required packages}
 library(tidyverse); library(magrittr)
 library(genomicMateSelectR)
@@ -51,7 +52,7 @@ dbdata<-readDBdata(phenotypeFile = here::here("data/",
 
 make TrialType Variable
 
-```{r}
+```{r Check trial info}
 dbdata<-makeTrialTypeVar(dbdata) 
 
 dbdata %>% count(TrialType) %>% rmarkdown::paged_table()
@@ -97,7 +98,7 @@ dbdata %>%
 
 Making a table of abbreviations for renaming. Since July 2019 version: added chromometer traits (L, a, b) and added branching levels count (BRLVLS) at IYR’s request.
 
-```{r Traits Evaluated, echo=F}
+```{r Traits Evaluated}
 traitabbrevs<-tribble(~TraitAbbrev,~TraitName,
         "CMD1S","cassava.mosaic.disease.severity.1.month.evaluation.CO_334.0000191",
         "CMD3S","cassava.mosaic.disease.severity.3.month.evaluation.CO_334.0000192",
@@ -132,7 +133,7 @@ dbdata<-renameAndSelectCols(traitabbrevs,indata=dbdata,customColsToKeep = c("Tri
 
 ## QC Trait values
 
-```{r}
+```{r Remove unexpected data}
 dbdata<-dbdata %>% 
   mutate(CMD1S=ifelse(CMD1S<1 | CMD1S>5,NA,CMD1S),
          CMD3S=ifelse(CMD3S<1 | CMD3S>5,NA,CMD3S),
@@ -293,8 +294,8 @@ germNamesWithoutGBSgenos<-dbdata %>%
   filter(is.na(FullSampleName)) %>% 
   select(-FullSampleName)
 
-DArTClones <- read.table(here::here("data","AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug03.fam"), 
-                        header = F, stringsAsFactors = F)$V2
+DArTClones <- tibble(FullSampleName = read.table(here::here("data","AllChrom_RefPanelAndGSprogeny_ReadyForGP_2022Aug03.fam"), 
+                        header = F, stringsAsFactors = F)$V2)
 
 write.table(DArTClones, file = here::here("data", "IITADArTClones.csv"), quote = F,
             row.names = F, sep = ",")
@@ -302,9 +303,6 @@ write.table(DArTClones, file = here::here("data", "IITADArTClones.csv"), quote =
 germNamesWithDArT <- read.table(here::here("data","IITADArTClones.csv"), 
                         header = T, stringsAsFactors = F, sep = ",") %>%
   left_join(gbs2phenoMaster, by = "FullSampleName") %>% 
-  mutate(germplasmName = ifelse(is.na(germplasmName.y),
-                                yes = germplasmName.x,
-                                no = germplasmName.y), .keep = "unused") %>% 
   select(FullSampleName, germplasmName, everything())
 
 germNamesWithDArT$OriginOfSample[str_starts(germNamesWithDArT$FullSampleName, "UG")] <- "NaCRRI"
@@ -315,10 +313,10 @@ write.table(germNamesWithDArT, file = here::here("data","IITADArTClones2.csv"),
 
 germNamesWithDArT <- read.table(file = here::here("data","IITADArTClones2.csv"),
                                 sep = ",", header = T)
-germNamesWithDArT$FullSampleName[germNamesWithDArT$FullSampleName %in% dbdata$FullSampleName]
+germNamesWithDArT$FullSampleName[germNamesWithDArT$FullSampleName %in% gbs2phenoMaster$FullSampleName]
 
 
-print(paste0(sum(germNamesWithDArT$OrigKeyFile == "DArTseqLD")," germNames with DArT-only genos"))
+# print(paste0(sum(germNamesWithDArT$OrigKeyFile == "DArTseqLD")," germNames with DArT-only genos"))
 
 # first, filter to just program-DNAorigin matches
 germNamesWithGenos<-dbdata %>% 
@@ -361,7 +359,7 @@ Click on Download Genotyping plate layouts then selected Download intertek forma
 In the DArTseqLD-to-VCF conversion step I see that the DArT system changes “.” to "_" so I will to in order to match
 
 
-```{r}
+```{r Select Clones with Genomic and Phenomic data}
 genosForPhenos %<>% 
   bind_rows(readxl::read_xls(here::here("data",
   "DatabaseDownload_2021Aug088885_genotyping_plate_layouts.xls")) %>% 
@@ -400,7 +398,7 @@ Based on previous locations used for IITA analysis, but adding based on list of 
 
 
 
-```{r}
+```{r Filter Trial locations}
 dbdata %<>% 
   filter(locationName %in% c("Abuja","Ago-Owu","Ibadan","Ikenne","Ilorin","Jos","Kano",
                              "Malam Madori","Mokwa","Ubiaja","Umudike","Warri","Zaria"))
@@ -409,7 +407,7 @@ nrow(dbdata)
 
 ## Output “cleaned” file
 
-```{r}
+```{r Save output file cleaned}
 saveRDS(dbdata,file=here::here("output","IITA_CleanedTrialData_2022Aug24.rds"))
 ```
 
@@ -430,7 +428,7 @@ Also error variances might be heterogeneous among different trial-types (blockin
 
 Start with cleaned data from previous step.
 
-```{r}
+```{r Read file}
 rm(list=ls()); gc()
 
 dbdata<-readRDS(here::here("output","IITA_CleanedTrialData_2022Aug24.rds"))
@@ -440,7 +438,7 @@ dbdata %>% head %>% rmarkdown::paged_table()
 
 Detect designs
 
-```{r}
+```{r Detect Trial Designs}
 
 dbdata<-detectExptDesigns(dbdata)
 
@@ -451,10 +449,15 @@ dbdata %>%
 ## Output file
 
 
-```{r}
+```{r Save output file with trial detected}
 saveRDS(dbdata,file=here::here("output","IITA_ExptDesignsDetected_2022Aug24.rds"))
 ```
 
+## [Home](index.html)
+
+## Last step
+
+1.1 [Preparing the new Genotyping data](Imputation.html)
 
 ## Next step
 

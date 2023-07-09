@@ -23,7 +23,7 @@ Downloaded from [cassavabase FTP server](https://cassavabase.org/ftp/marnin_data
 
 Used cbsumezey03 Cornell CBSU machine (e.g. cbsumezey03; 20 cores, 512 GB RAM), running 1 chromosome at a time.
 
-```{r, eval = F}
+```{r Imputation script Beagle 5, eval = F}
 targetVCFpath<-here::here("data/Report-DCas22-7004/") # location of the targetVCF
 refVCFpath<-here::here("data/")
 mapPath<-here::here("data/CassavaGeneticMap/")
@@ -58,7 +58,7 @@ purrr::map(3,
 
 Clean up Beagle log files after run. Move to sub-directory output/BeagleLogs/.
 
-```{bash, eval = F}
+```{bash clean work directory, eval = F}
 cd /workdir/lbraatz/IITA_2022GS/output/; 
 mkdir BeagleLogs;
 cp *_DCas22_7004_WA_REFimputed.log BeagleLogs/
@@ -73,7 +73,7 @@ Standard post-imputation filter: AR2>0.75 (DR2>0.75 as of Beagle5.0), P_HWE>1e-2
 
 Loop to filter all 18 VCF files in parallel
 
-```{r, eval = F}
+```{r Filters, eval = F}
 inPath<-here::here("output/")
 outPath<-here::here("output/")
 require(furrr); plan(multicore, workers = 18)
@@ -87,7 +87,7 @@ plan(sequential)
 
 Check what’s left
 
-```{r, eval = F}
+```{r Check results, eval = F}
 purrr::map(1:18,~system(paste0("zcat ",here::here("output/"),"chr",.,"_DCas22_7004_WA_REFimputedAndFiltered.vcf.gz | wc -l")))
 # Chr01 - 7,321
 # Chr02 - 3,517
@@ -174,3 +174,10 @@ system(paste0("export PATH=/programs/plink-1.9-x86_64-beta3.30:$PATH;",
               "--out ",outPath,vcfName))
 ```
 
+
+## [Home](index.html)
+
+
+## Next page
+
+1.2 [Phenotyping Data Curation](cleanTPdata.html)
